@@ -92,9 +92,9 @@ func rawEncode(data []byte) []string {
 	n := len(data)
 	buf := make([]string, 0, n)
 
-	// ipmitool raw wasn't happy with hex.Encode
+	// ipmitool needs every byte to be a separate argument
 	for i := 0; i < n; i++ {
-		buf = append(buf, fmt.Sprintf("%#x", data[i:i+1]))
+		buf = append(buf, "0x"+hex.EncodeToString(data[i:i+1]))
 	}
 
 	return buf
