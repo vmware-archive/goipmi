@@ -58,7 +58,7 @@ func newToolMock(output string, rc int) *toolMock {
 		panic(err)
 	}
 	// just enough to test exec related code paths
-	file.WriteString("#!/bin/bash\n")
+	file.WriteString("#!/usr/bin/env bash\n")
 	file.WriteString(fmt.Sprintf("echo -n '%s'\n", output))
 	if rc != 0 {
 		file.WriteString("echo 'Mock Failure' 1>&2\n")
