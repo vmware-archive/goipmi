@@ -75,9 +75,8 @@ func (s *ChassisStatus) IsSystemPowerOn() bool {
 func (s *ChassisStatus) String() string {
 	if s.IsSystemPowerOn() {
 		return "on"
-	} else {
-		return "off"
 	}
+	return "off"
 }
 
 func (s *ChassisStatus) PowerRestorePolicy() uint8 {
