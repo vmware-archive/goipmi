@@ -138,3 +138,13 @@ func (c *Connection) ChassisControl(ctl ChassisControl) error {
 	_, err := c.run("power", ctl.String())
 	return err
 }
+
+// EnableNetworkBoot implementation of the jessup.Control interface
+func (c *Connection) EnableNetworkBoot() error {
+	return c.SetBootDevice(BootDevicePxe)
+}
+
+// PowerCycle implementation of the jessup.Control interface
+func (c *Connection) PowerCycle() error {
+	return c.ChassisControl(ControlPowerCycle)
+}
