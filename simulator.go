@@ -92,9 +92,10 @@ func (c CompletionCode) Code() uint8 {
 
 // Completion Codes (section 5.2)
 var (
-	CommandCompleted = CompletionCode(0x00)
-	InvalidCommand   = CompletionCode(0xc1)
-	UnspecifiedError = CompletionCode(0xff)
+	CommandCompleted       = CompletionCode(0x00)
+	InvalidCommand         = CompletionCode(0xc1)
+	DestinationUnavailable = CompletionCode(0xd3)
+	UnspecifiedError       = CompletionCode(0xff)
 )
 
 // Request handler
