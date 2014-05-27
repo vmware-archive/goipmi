@@ -73,6 +73,7 @@ type Command uint8
 
 // Command Number Assignments (table G-1)
 var (
+	CommandGetDeviceID                   = Command(0x01)
 	CommandGetAuthenticationCapabilities = Command(0x38)
 	CommandGetSessionChallenge           = Command(0x39)
 	CommandActivateSession               = Command(0x3a)
@@ -127,6 +128,7 @@ func NewSimulator(addr net.UDPAddr) *Simulator {
 
 	// Built-in handlers for session management
 	s.handlers[NetworkFunctionApp] = map[Command]Request{
+		CommandGetDeviceID:                   s.deviceID,
 		CommandGetAuthenticationCapabilities: s.authenticationCapabilities,
 		CommandGetSessionChallenge:           s.sessionChallenge,
 		CommandActivateSession:               s.sessionActivate,
@@ -187,6 +189,23 @@ func (s *Simulator) Run() error {
 func (s *Simulator) Stop() {
 	_ = s.conn.Close()
 	s.wg.Wait()
+}
+
+func (s *Simulator) deviceID(*Message) Response {
+	return struct {
+		CompletionCode
+		DeviceID                uint8
+		DeviceRevision          uint8
+		FirmwareRevision1       uint8
+		FirmwareRevision2       uint8
+		IPMIVersion             uint8
+		AdditionalDeviceSupport uint8
+		ManufacturerID          uint16
+		ProductID               uint16
+	}{
+		CompletionCode: CommandCompleted,
+		IPMIVersion:    0x51, // 1.5
+	}
 }
 
 func (s *Simulator) authenticationCapabilities(*Message) Response {
