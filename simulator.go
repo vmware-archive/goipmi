@@ -4,115 +4,22 @@ package ipmi
 
 import (
 	"bytes"
-	"encoding/binary"
+
 	"hash/adler32"
-	"io"
 	"log"
 	"net"
 	"sync"
 )
 
-type rmcpHeader struct {
-	Version            uint8
-	Reserved           uint8
-	RMCPSequenceNumber uint8
-	Class              uint8
-}
-
-type asfHeader struct {
-	IANAEnterpriseNumber uint32
-	MessageType          uint8
-	MessageTag           uint8
-	Reserved             uint8
-	DataLength           uint8
-}
-
-type asfMessage struct {
-	rmcpHeader
-	asfHeader
-	Data []byte
-}
-
-type ipmiSession struct {
-	AuthType  uint8
-	Sequence  uint32
-	SessionID uint32
-}
-
-type ipmiHeader struct {
-	MsgLen     uint8
-	RsAddr     uint8
-	NetFnRsLUN uint8
-	Checksum   uint8
-	RqAddr     uint8
-	RqSeq      uint8
-	Command
-}
-
-// Message encapsulates an IPMI message
-type Message struct {
-	rmcpHeader
-	ipmiSession
-	AuthCode [16]byte
-	ipmiHeader
-	Data      []byte
-	RequestID string
-}
-
-// NetworkFunction identifies the functional class of an IPMI message
-type NetworkFunction uint8
-
-// Network Function Codes (section 5.1)
-var (
-	NetworkFunctionChassis = NetworkFunction(0x00)
-	NetworkFunctionApp     = NetworkFunction(0x06)
-)
-
-// Command fields on an IPMI message
-type Command uint8
-
-// Command Number Assignments (table G-1)
-var (
-	CommandGetDeviceID                   = Command(0x01)
-	CommandGetAuthenticationCapabilities = Command(0x38)
-	CommandGetSessionChallenge           = Command(0x39)
-	CommandActivateSession               = Command(0x3a)
-	CommandSetSessionPrivilegeLevel      = Command(0x3b)
-	CommandCloseSession                  = Command(0x3c)
-	CommandChassisControl                = Command(0x02)
-	CommandSetSystemBootOptions          = Command(0x08)
-)
-
-// CompletionCode is the first byte in the data field of all IPMI responses
-type CompletionCode uint8
-
-// Code returns the CompletionCode as uint8
-func (c CompletionCode) Code() uint8 {
-	return uint8(c)
-}
-
-// Completion Codes (section 5.2)
-var (
-	CommandCompleted       = CompletionCode(0x00)
-	InvalidCommand         = CompletionCode(0xc1)
-	DestinationUnavailable = CompletionCode(0xd3)
-	UnspecifiedError       = CompletionCode(0xff)
-)
-
-// Request handler
-type Request func(*Message) Response
-
-// Response to an IPMI request must include at least a CompletionCode
-type Response interface {
-	Code() uint8
-}
+// Handler function
+type Handler func(*Message) Response
 
 // Simulator for IPMI
 type Simulator struct {
 	wg       sync.WaitGroup
 	addr     net.UDPAddr
 	conn     *net.UDPConn
-	handlers map[NetworkFunction]map[Command]Request
+	handlers map[NetworkFunction]map[Command]Handler
 	ids      map[uint32]string
 }
 
@@ -121,26 +28,26 @@ func NewSimulator(addr net.UDPAddr) *Simulator {
 	s := &Simulator{
 		addr: addr,
 		ids:  map[uint32]string{},
-		handlers: map[NetworkFunction]map[Command]Request{
-			NetworkFunctionChassis: map[Command]Request{},
+		handlers: map[NetworkFunction]map[Command]Handler{
+			NetworkFunctionChassis: map[Command]Handler{},
 		},
 	}
 
 	// Built-in handlers for session management
-	s.handlers[NetworkFunctionApp] = map[Command]Request{
-		CommandGetDeviceID:                   s.deviceID,
-		CommandGetAuthenticationCapabilities: s.authenticationCapabilities,
-		CommandGetSessionChallenge:           s.sessionChallenge,
-		CommandActivateSession:               s.sessionActivate,
-		CommandSetSessionPrivilegeLevel:      s.sessionPrivilege,
-		CommandCloseSession:                  s.sessionClose,
+	s.handlers[NetworkFunctionApp] = map[Command]Handler{
+		CommandGetDeviceID:              s.deviceID,
+		CommandGetAuthCapabilities:      s.authCapabilities,
+		CommandGetSessionChallenge:      s.sessionChallenge,
+		CommandActivateSession:          s.sessionActivate,
+		CommandSetSessionPrivilegeLevel: s.sessionPrivilege,
+		CommandCloseSession:             s.sessionClose,
 	}
 
 	return s
 }
 
 // SetHandler sets the command handler for the given netfn and command
-func (s *Simulator) SetHandler(netfn NetworkFunction, command Command, handler Request) {
+func (s *Simulator) SetHandler(netfn NetworkFunction, command Command, handler Handler) {
 	s.handlers[netfn][command] = handler
 }
 
@@ -160,11 +67,6 @@ func (s *Simulator) LocalAddr() *net.UDPAddr {
 		return s.conn.LocalAddr().(*net.UDPAddr)
 	}
 	return nil
-}
-
-// NetFn returns the NetworkFunction portion of the NetFn/RsLUN field
-func (m *Message) NetFn() NetworkFunction {
-	return NetworkFunction(m.NetFnRsLUN >> 2)
 }
 
 // Run the Simulator.
@@ -192,44 +94,17 @@ func (s *Simulator) Stop() {
 }
 
 func (s *Simulator) deviceID(*Message) Response {
-	return struct {
-		CompletionCode
-		DeviceID                uint8
-		DeviceRevision          uint8
-		FirmwareRevision1       uint8
-		FirmwareRevision2       uint8
-		IPMIVersion             uint8
-		AdditionalDeviceSupport uint8
-		ManufacturerID          uint16
-		ProductID               uint16
-	}{
+	return &DeviceIDResponse{
 		CompletionCode: CommandCompleted,
 		IPMIVersion:    0x51, // 1.5
 	}
 }
 
-func (s *Simulator) authenticationCapabilities(*Message) Response {
-	const (
-		authNone = (1 << iota)
-		authMD2
-		authMD5
-		authReserved
-		authPassword
-		authOEM
-	)
-
-	return struct {
-		CompletionCode
-		ChannelNumber             uint8
-		AuthenticationTypeSupport uint8
-		Status                    uint8
-		Reserved                  uint8
-		OEMID                     uint16
-		OEMAux                    uint8
-	}{
-		CompletionCode:            CommandCompleted,
-		ChannelNumber:             0x01,
-		AuthenticationTypeSupport: authNone | authMD5 | authPassword,
+func (s *Simulator) authCapabilities(*Message) Response {
+	return &AuthCapabilitiesResponse{
+		CompletionCode:  CommandCompleted,
+		ChannelNumber:   0x01,
+		AuthTypeSupport: AuthTypeNone | AuthTypeMD5 | AuthTypePassword,
 	}
 }
 
@@ -240,28 +115,22 @@ func (s *Simulator) sessionChallenge(m *Message) Response {
 	// dispatch requests.
 	username := bytes.TrimRight(m.Data[1:], "\000")
 	hash := adler32.New()
-	hash.Sum(username)
+	_, err := hash.Write(username)
+	if err != nil {
+		panic(err)
+	}
 	id := hash.Sum32()
+
 	s.ids[id] = string(username)
 
-	return struct {
-		CompletionCode
-		TemporarySessionID uint32
-		Challenge          [15]byte
-	}{
+	return &SessionChallengeResponse{
 		CompletionCode:     CommandCompleted,
 		TemporarySessionID: id,
 	}
 }
 
 func (s *Simulator) sessionActivate(m *Message) Response {
-	return struct {
-		CompletionCode
-		AuthType   uint8
-		SessionID  uint32
-		InboundSeq uint32
-		MaxPriv    uint8
-	}{
+	return &ActivateSessionResponse{
 		CompletionCode: CommandCompleted,
 		AuthType:       m.AuthType,
 		SessionID:      m.SessionID,
@@ -271,10 +140,7 @@ func (s *Simulator) sessionActivate(m *Message) Response {
 }
 
 func (s *Simulator) sessionPrivilege(m *Message) Response {
-	return struct {
-		CompletionCode
-		NewPrivilegeLevel uint8
-	}{
+	return &SessionPrivilegeLevelResponse{
 		CompletionCode:    CommandCompleted,
 		NewPrivilegeLevel: m.Data[0],
 	}
@@ -282,22 +148,6 @@ func (s *Simulator) sessionPrivilege(m *Message) Response {
 
 func (s *Simulator) sessionClose(*Message) Response {
 	return CommandCompleted
-}
-
-func (s *Simulator) write(writer io.Writer, data interface{}) {
-	err := binary.Write(writer, binary.BigEndian, data)
-	if err != nil {
-		// shouldn't happen to a bytes.Buffer
-		panic(err)
-	}
-}
-
-func (s *Simulator) read(reader io.Reader, data interface{}) {
-	err := binary.Read(reader, binary.BigEndian, data)
-	if err != nil {
-		// in this case, client gets no response or InvalidCommand
-		log.Printf("binary.Read error: %s", err)
-	}
 }
 
 func (s *Simulator) ipmiCommand(m *Message) []byte {
@@ -310,48 +160,28 @@ func (s *Simulator) ipmiCommand(m *Message) []byte {
 		}
 	}
 
-	buf := new(bytes.Buffer)
-	s.write(buf, &m.rmcpHeader)
-	s.write(buf, &m.ipmiSession)
-	if m.AuthType != 0 {
-		s.write(buf, m.AuthCode)
-	}
-	s.write(buf, &m.ipmiHeader)
-	s.write(buf, response)
-
-	return buf.Bytes()
+	return m.toBytes(response)
 }
 
 func (s *Simulator) asfCommand(m *asfMessage) []byte {
-	if m.MessageType != 0x80 {
-		log.Panicf("ASF message type not supported: %d", m.MessageType)
+	if m.MessageType != asfMessageTypePing {
+		log.Print(m.unsupportedMessageType())
+		return []byte{} // TODO: general ASF error code?
 	}
 
-	response := struct {
-		IANAEnterpriseNumber  uint32
-		OEM                   uint32
-		SupportedEntities     uint8
-		SupportedInteractions uint8
-		Reserved              [6]uint8
-	}{
-		IANAEnterpriseNumber: m.IANAEnterpriseNumber,
+	m.MessageType = asfMessageTypePong
+	response := asfPong{
+		IANAEnterpriseNumber: asfIANA,
 		SupportedEntities:    0x81, // IPMI
 	}
 
-	buf := new(bytes.Buffer)
-	s.write(buf, &m.rmcpHeader)
-	s.write(buf, &m.asfHeader)
-	s.write(buf, &response)
-
-	return buf.Bytes()
+	return m.toBytes(&response)
 }
 
 func (s *Simulator) serve() error {
-	buf := make([]byte, 1024)
-	ipmiHeaderSize := binary.Size(ipmiHeader{})
+	buf := make([]byte, ipmiBufSize)
 
 	for {
-		var header rmcpHeader
 		var response []byte
 		var err error
 
@@ -360,37 +190,31 @@ func (s *Simulator) serve() error {
 			return err // conn closed
 		}
 
-		reader := bytes.NewReader(buf[:n])
-
-		s.read(reader, &header)
+		header, err := rmcpHeaderFromBytes(buf)
+		if err != nil {
+			log.Print(err)
+			continue
+		}
 
 		switch header.Class {
-		case 6:
-			m := &asfMessage{
-				rmcpHeader: header,
+		case rmcpClassASF:
+			m, err := asfMessageFromBytes(buf)
+			if err != nil {
+				log.Print(err)
+				continue
 			}
-
-			s.read(reader, &m.asfHeader)
 
 			response = s.asfCommand(m)
-		case 7:
-			m := &Message{
-				rmcpHeader: header,
+		case rmcpClassIPMI:
+			m, err := messageFromBytes(buf[:n])
+			if err != nil {
+				log.Print(err)
+				continue
 			}
-
-			s.read(reader, &m.ipmiSession)
-			if m.AuthType != 0 {
-				s.read(reader, &m.AuthCode)
-			}
-			s.read(reader, &m.ipmiHeader)
-
-			dataLen := int(m.MsgLen) - ipmiHeaderSize
-			m.Data = make([]byte, dataLen)
-			_, _ = reader.Read(m.Data)
 
 			response = s.ipmiCommand(m)
 		default:
-			log.Printf("Unsupported Class: %d", header.Class)
+			log.Print(header.unsupportedClass())
 			continue
 		}
 
