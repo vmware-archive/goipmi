@@ -101,15 +101,25 @@ func messageFromBytes(buf []byte) (*Message, error) {
 	if err := binary.Read(reader, binary.BigEndian, m.ipmiHeader); err != nil {
 		return nil, err
 	}
+	if m.headerChecksum() != m.Checksum {
+		return nil, ErrInvalidPacket
+	}
 
 	if m.MsgLen <= 0 {
 		return nil, ErrInvalidPacket
 	}
 	dataLen := int(m.MsgLen) - ipmiHeaderSize
-	m.Data = make([]byte, dataLen)
-	_, err := reader.Read(m.Data)
+	data := make([]byte, dataLen+1)
+	_, err := reader.Read(data)
+	if err != nil {
+		return nil, err
+	}
+	m.Data = data[:dataLen]
+	if m.payloadChecksum(m.Data) != data[dataLen] {
+		return nil, ErrInvalidPacket
+	}
 
-	return m, err
+	return m, nil
 }
 
 func (m *Message) toBytes(data interface{}) []byte {
@@ -120,11 +130,32 @@ func (m *Message) toBytes(data interface{}) []byte {
 	if m.AuthType != 0 {
 		binaryWrite(buf, m.AuthCode)
 	}
-	m.ipmiHeader.MsgLen = uint8(ipmiHeaderSize + binary.Size(data))
+
+	m.MsgLen = uint8(ipmiHeaderSize + binary.Size(data))
+	m.Checksum = m.headerChecksum()
 	binaryWrite(buf, m.ipmiHeader)
+
+	dlen := buf.Len()
 	binaryWrite(buf, data)
+	binaryWrite(buf, m.payloadChecksum(buf.Bytes()[dlen:]))
 
 	return buf.Bytes()
+}
+
+func (m *Message) headerChecksum() uint8 {
+	return checksum(m.RsAddr, m.NetFnRsLUN)
+}
+
+func (m *Message) payloadChecksum(data []byte) uint8 {
+	return checksum(m.RqAddr, m.RqSeq, uint8(m.Command)) + checksum(data...)
+}
+
+func checksum(b ...uint8) uint8 {
+	var c uint8
+	for _, x := range b {
+		c += x
+	}
+	return -c
 }
 
 func binaryWrite(writer io.Writer, data interface{}) {

@@ -19,3 +19,11 @@ func TestMessageFromBytes(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, ErrInvalidPacket, err)
 }
+
+func TestChecksum(t *testing.T) {
+	buf := make([]byte, ipmiBufSize)
+	buf[16] = 0x38
+	buf[512] = 0x3c
+	c := checksum(buf...)
+	assert.Equal(t, uint8(0x0), c+uint8(0x38+0x3c))
+}
