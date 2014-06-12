@@ -78,12 +78,12 @@ type AuthCapabilitiesResponse struct {
 	OEMAux          uint8
 }
 
-// AuthTypeSupport
+// AuthType
 const (
-	AuthTypeNone = (1 << iota)
+	AuthTypeNone = iota
 	AuthTypeMD2
 	AuthTypeMD5
-	AuthTypeReserved
+	authTypeReserved
 	AuthTypePassword
 	AuthTypeOEM
 )

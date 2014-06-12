@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+const authTypeSupport = (1 << AuthTypeNone) | (1 << AuthTypeMD5) | (1 << AuthTypePassword)
+
 // Handler function
 type Handler func(*Message) Response
 
@@ -104,7 +106,7 @@ func (s *Simulator) authCapabilities(*Message) Response {
 	return &AuthCapabilitiesResponse{
 		CompletionCode:  CommandCompleted,
 		ChannelNumber:   0x01,
-		AuthTypeSupport: AuthTypeNone | AuthTypeMD5 | AuthTypePassword,
+		AuthTypeSupport: authTypeSupport,
 	}
 }
 
