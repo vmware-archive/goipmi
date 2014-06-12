@@ -88,6 +88,16 @@ const (
 	AuthTypeOEM
 )
 
+// PrivLevel
+const (
+	PrivLevelNone = iota
+	PrivLevelCallback
+	PrivLevelUser
+	PrivLevelOperator
+	PrivLevelAdmin
+	PrivLevelOEM
+)
+
 // SessionChallengeRequest per section 22.16
 type SessionChallengeRequest struct {
 	AuthType uint8

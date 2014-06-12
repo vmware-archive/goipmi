@@ -137,7 +137,7 @@ func (s *Simulator) sessionActivate(m *Message) Response {
 		AuthType:       m.AuthType,
 		SessionID:      m.SessionID,
 		InboundSeq:     m.Sequence,
-		MaxPriv:        0x04, // Admin
+		MaxPriv:        PrivLevelAdmin,
 	}
 }
 
