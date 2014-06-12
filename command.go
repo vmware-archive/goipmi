@@ -45,6 +45,9 @@ type Response interface {
 	Code() uint8
 }
 
+// DeviceIDRequest per section 20.1
+type DeviceIDRequest struct{}
+
 // DeviceIDResponse per section 20.1
 type DeviceIDResponse struct {
 	CompletionCode
@@ -56,6 +59,12 @@ type DeviceIDResponse struct {
 	AdditionalDeviceSupport uint8
 	ManufacturerID          uint16
 	ProductID               uint16
+}
+
+// AuthCapabilitiesRequest per section 22.13
+type AuthCapabilitiesRequest struct {
+	ChannelNumber uint8
+	PrivLevel     uint8
 }
 
 // AuthCapabilitiesResponse per section 22.13
@@ -79,11 +88,25 @@ const (
 	AuthTypeOEM
 )
 
+// SessionChallengeRequest per section 22.16
+type SessionChallengeRequest struct {
+	AuthType uint8
+	Username [16]uint8
+}
+
 // SessionChallengeResponse per section 22.16
 type SessionChallengeResponse struct {
 	CompletionCode
 	TemporarySessionID uint32
 	Challenge          [16]byte
+}
+
+// ActivateSessionRequest per section 22.17
+type ActivateSessionRequest struct {
+	AuthType  uint8
+	PrivLevel uint8
+	AuthCode  [16]uint8
+	InSeq     [4]uint8
 }
 
 // ActivateSessionResponse per section 22.17
@@ -95,8 +118,23 @@ type ActivateSessionResponse struct {
 	MaxPriv    uint8
 }
 
+// SessionPrivilegeLevelRequest per section 22.18
+type SessionPrivilegeLevelRequest struct {
+	PrivLevel uint8
+}
+
 // SessionPrivilegeLevelResponse per section 22.18
 type SessionPrivilegeLevelResponse struct {
 	CompletionCode
 	NewPrivilegeLevel uint8
+}
+
+// CloseSessionRequest per section 22.19
+type CloseSessionRequest struct {
+	SessionID uint32
+}
+
+// CloseSessionResponse per section 22.19
+type CloseSessionResponse struct {
+	CompletionCode
 }
