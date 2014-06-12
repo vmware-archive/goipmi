@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 const (
@@ -74,10 +75,10 @@ func asfMessageFromBytes(buf []byte) (*asfMessage, error) {
 func (m *asfMessage) toBytes(data interface{}) []byte {
 	buf := new(bytes.Buffer)
 
-	binaryWrite(buf, m.rmcpHeader)
-	binaryWrite(buf, m.asfHeader)
+	m.binaryWrite(buf, m.rmcpHeader)
+	m.binaryWrite(buf, m.asfHeader)
 	if data != nil {
-		binaryWrite(buf, data)
+		m.binaryWrite(buf, data)
 	}
 
 	return buf.Bytes()
@@ -86,6 +87,14 @@ func (m *asfMessage) toBytes(data interface{}) []byte {
 // Response specific to the request ASF command
 func (m *asfMessage) response(data interface{}) error {
 	return binary.Read(bytes.NewBuffer(m.Data), binary.BigEndian, data)
+}
+
+func (m *asfMessage) binaryWrite(writer io.Writer, data interface{}) {
+	err := binary.Write(writer, binary.BigEndian, data)
+	if err != nil {
+		// shouldn't happen to a bytes.Buffer
+		panic(err)
+	}
 }
 
 func (m *asfPong) valid() bool {

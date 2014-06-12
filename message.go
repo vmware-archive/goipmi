@@ -72,7 +72,7 @@ func (m *Message) Response(data Response) error {
 	if m.CompletionCode() != CommandCompleted {
 		return m.CompletionCode()
 	}
-	return binary.Read(bytes.NewBuffer(m.Data), binary.BigEndian, data)
+	return binary.Read(bytes.NewBuffer(m.Data), binary.LittleEndian, data)
 }
 
 func messageFromBytes(buf []byte) (*Message, error) {
@@ -87,18 +87,18 @@ func messageFromBytes(buf []byte) (*Message, error) {
 	}
 	reader := bytes.NewReader(buf)
 
-	if err := binary.Read(reader, binary.BigEndian, m.rmcpHeader); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, m.rmcpHeader); err != nil {
 		return nil, err
 	}
-	if err := binary.Read(reader, binary.BigEndian, m.ipmiSession); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, m.ipmiSession); err != nil {
 		return nil, err
 	}
 	if m.AuthType != 0 {
-		if err := binary.Read(reader, binary.BigEndian, &m.AuthCode); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &m.AuthCode); err != nil {
 			return nil, err
 		}
 	}
-	if err := binary.Read(reader, binary.BigEndian, m.ipmiHeader); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, m.ipmiHeader); err != nil {
 		return nil, err
 	}
 	if m.headerChecksum() != m.Checksum {
@@ -159,7 +159,7 @@ func checksum(b ...uint8) uint8 {
 }
 
 func binaryWrite(writer io.Writer, data interface{}) {
-	err := binary.Write(writer, binary.BigEndian, data)
+	err := binary.Write(writer, binary.LittleEndian, data)
 	if err != nil {
 		// shouldn't happen to a bytes.Buffer
 		panic(err)
