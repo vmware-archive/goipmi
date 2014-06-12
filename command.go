@@ -83,7 +83,7 @@ const (
 type SessionChallengeResponse struct {
 	CompletionCode
 	TemporarySessionID uint32
-	Challenge          [15]byte
+	Challenge          [16]byte
 }
 
 // ActivateSessionResponse per section 22.17
