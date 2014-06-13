@@ -40,6 +40,13 @@ var (
 	UnspecifiedError       = CompletionCode(0xff)
 )
 
+// Request structure
+type Request struct {
+	NetworkFunction
+	Command
+	Data interface{}
+}
+
 // Response to an IPMI request must include at least a CompletionCode
 type Response interface {
 	Code() uint8
