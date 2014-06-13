@@ -6,8 +6,6 @@ type ChassisControl uint8
 type BootDevice uint8
 
 const (
-	netfnChassis = 0x0
-
 	ControlPowerDown      = ChassisControl(0x0)
 	ControlPowerUp        = ChassisControl(0x1)
 	ControlPowerCycle     = ChassisControl(0x2)
@@ -57,65 +55,65 @@ const (
 	PowerButtonDisabled = 0x01
 )
 
-type ChassisStatus struct {
+// ChassisStatusRequest per section 28.3
+type ChassisStatusRequest struct{}
+
+// ChassisStatusResponse per section 28.3
+type ChassisStatusResponse struct {
+	CompletionCode
 	PowerState        uint8
 	LastPowerEvent    uint8
 	State             uint8
 	FrontControlPanel uint8
 }
 
-type BootFlags struct {
-	BootDeviceSelector BootDevice
+// SetSystemBootOptionsRequest per section 28.12
+type SetSystemBootOptionsRequest struct {
+	Param uint8
+	Data  []uint8
 }
 
-func (s *ChassisStatus) IsSystemPowerOn() bool {
+// SetSystemBootOptionsResponse per section 28.12
+type SetSystemBootOptionsResponse struct{}
+
+// SystemBootOptionsRequest per section 28.13
+type SystemBootOptionsRequest struct {
+	Param uint8
+	Set   uint8
+	Block uint8
+}
+
+// SystemBootOptionsResponse per section 28.13
+type SystemBootOptionsResponse struct {
+	CompletionCode
+	Version uint8
+	Param   uint8
+	// Data    [...]uint8
+}
+
+// SystemBootFlagsResponse per section 28.13; table 28 #5 "boot flags"
+type SystemBootFlagsResponse struct {
+	SystemBootOptionsResponse
+	Data [5]uint8
+}
+
+func (s *ChassisStatusResponse) IsSystemPowerOn() bool {
 	return (s.PowerState & SystemPower) == SystemPower
 }
 
-func (s *ChassisStatus) String() string {
+func (s *ChassisStatusResponse) String() string {
 	if s.IsSystemPowerOn() {
 		return "on"
 	}
 	return "off"
 }
 
-func (s *ChassisStatus) PowerRestorePolicy() uint8 {
+func (s *ChassisStatusResponse) PowerRestorePolicy() uint8 {
 	return (s.PowerState & 0x60) >> 5
 }
 
-func (s *ChassisStatus) request() []byte {
-	return []byte{
-		netfnChassis,
-		0x1,
-	}
-}
-
-func (s *ChassisStatus) parse(data []byte) {
-	s.PowerState = data[0]
-	s.LastPowerEvent = data[1]
-	s.State = data[2]
-	// optional per ipmi spec
-	if len(data) > 3 {
-		s.FrontControlPanel = data[3]
-	}
-}
-
-func getBootParamRequest(id uint8) []byte {
-	return []byte{
-		netfnChassis,
-		0x9,
-		id & 0x7f,
-		0x0,
-		0x0,
-	}
-}
-
-func (b *BootFlags) request() []byte {
-	return getBootParamRequest(0x5)
-}
-
-func (b *BootFlags) parse(data []byte) {
-	b.BootDeviceSelector = BootDevice((data[3] >> 2) & 0x0f)
+func (r *SystemBootFlagsResponse) BootDeviceSelector() BootDevice {
+	return BootDevice((r.Data[1] >> 2) & 0x0f)
 }
 
 func (d BootDevice) String() string {

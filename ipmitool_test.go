@@ -3,10 +3,7 @@
 package ipmi
 
 import (
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,77 +38,54 @@ func TestOptions(t *testing.T) {
 	}
 }
 
-type toolMock struct {
-	Connection
-}
+func TestTool(t *testing.T) {
+	s := NewSimulator(net.UDPAddr{Port: 0})
+	err := s.Run()
+	assert.NoError(t, err)
 
-func (m *toolMock) cleanup() {
-	err := os.Remove(m.Path)
-	if err != nil {
-		log.Printf("Remove(%s): %s", m.Path, err)
-	}
-}
-
-func newToolMock(output string, rc int) *toolMock {
-	file, err := ioutil.TempFile("", "ipmitool")
-	if err != nil {
-		panic(err)
-	}
-	// just enough to test exec related code paths
-	file.WriteString("#!/usr/bin/env bash\n")
-	file.WriteString(fmt.Sprintf("echo -n '%s'\n", output))
-	if rc != 0 {
-		file.WriteString("echo 'Mock Failure' 1>&2\n")
-		file.WriteString(fmt.Sprintf("exit %d\n", rc))
+	c := &Connection{
+		Hostname:  "127.0.0.1",
+		Port:      s.LocalAddr().Port,
+		Username:  "vmware",
+		Password:  "cow",
+		Interface: "lan",
+		Path:      "ipmitool",
 	}
 
-	err = file.Close()
-	if err != nil {
-		panic(err)
+	tr, err := newTransport(c)
+	assert.NoError(t, err)
+
+	err = tr.open()
+	assert.NoError(t, err)
+
+	// Device ID
+	req := &Request{
+		NetworkFunctionApp,
+		CommandGetDeviceID,
+		&DeviceIDRequest{},
 	}
+	dir := &DeviceIDResponse{}
+	err = tr.send(req, dir)
+	assert.NoError(t, err)
+	assert.Equal(t, uint8(0x51), dir.IPMIVersion)
 
-	err = os.Chmod(file.Name(), 0755)
-	if err != nil {
-		panic(err)
+	// Chassis Status
+	req = &Request{
+		NetworkFunctionChassis,
+		CommandChassisStatus,
+		&DeviceIDRequest{},
 	}
+	csr := &ChassisStatusResponse{}
+	err = tr.send(req, csr)
+	assert.NoError(t, err)
+	assert.Equal(t, uint8(SystemPower), csr.PowerState)
 
-	return &toolMock{Connection{Path: file.Name()}}
-}
+	// Invalid command
+	req.Command = 0xff
+	err = tr.send(req, &DeviceIDResponse{})
+	assert.Error(t, err)
 
-func TestExec(t *testing.T) {
-	tool := newToolMock("stuff", 0)
-	defer tool.cleanup()
-	output, err := tool.run("bmc", "info")
-
-	assert.Nil(t, err)
-	assert.Equal(t, "stuff", output)
-}
-
-func TestExecErr(t *testing.T) {
-	tool := newToolMock("nothing", 1)
-	defer tool.cleanup()
-	output, err := tool.run("foo", "bar")
-
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Mock Failure")
-	assert.NotContains(t, err.Error(), "nothing")
-	assert.Equal(t, "", output)
-}
-
-func TestChassisStatus(t *testing.T) {
-	tool := newToolMock("21 10 40 54\n", 0)
-	defer tool.cleanup()
-	status, err := tool.ChassisStatus()
-
-	assert.Nil(t, err)
-	assert.Equal(t, true, status.IsSystemPowerOn())
-}
-
-func TestGetBootFlags(t *testing.T) {
-	tool := newToolMock("01 05 80 3c 00 00 00", 0)
-	defer tool.cleanup()
-	flags, err := tool.GetBootFlags()
-
-	assert.Nil(t, err)
-	assert.Equal(t, BootDeviceFloppy, flags.BootDeviceSelector)
+	err = tr.close()
+	assert.NoError(t, err)
+	s.Stop()
 }

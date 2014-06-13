@@ -7,15 +7,19 @@ import (
 )
 
 func TestChassisStatusRequest(t *testing.T) {
-	status := &ChassisStatus{}
-	raw := rawEncode(status.request())
+	req := &Request{
+		NetworkFunctionChassis,
+		CommandChassisStatus,
+		&ChassisStatusRequest{},
+	}
+	raw := requestToStrings(req)
 	assert.Equal(t, []string{"0x00", "0x01"}, raw)
 }
 
 func TestChassisStatusParse(t *testing.T) {
-	status := &ChassisStatus{}
-	data := rawDecode("21 10 40 54")
-	status.parse(data)
+	status := &ChassisStatusResponse{}
+	err := responseFromString("21 10 40 54", status)
+	assert.NoError(t, err)
 
 	assert.Equal(t, true, status.IsSystemPowerOn())
 	assert.Equal(t, uint8(SystemPower), status.PowerState&SystemPower)
@@ -33,14 +37,20 @@ func TestChassisStatusParse(t *testing.T) {
 }
 
 func TestBootFlagsRequest(t *testing.T) {
-	flags := &BootFlags{}
-	raw := rawEncode(flags.request())
+	req := &Request{
+		NetworkFunctionChassis,
+		CommandGetSystemBootOptions,
+		&SystemBootOptionsRequest{
+			Param: 0x05,
+		},
+	}
+	raw := requestToStrings(req)
 	assert.Equal(t, []string{"0x00", "0x09", "0x05", "0x00", "0x00"}, raw)
 }
 
 func TestBootFlagsParse(t *testing.T) {
-	data := rawDecode("01 05 80 3c 00 00 00")
-	flags := &BootFlags{}
-	flags.parse(data)
-	assert.Equal(t, BootDeviceFloppy, flags.BootDeviceSelector)
+	res := &SystemBootFlagsResponse{}
+	err := responseFromString("01 05 80 3c 00 00 00", res)
+	assert.NoError(t, err)
+	assert.Equal(t, BootDeviceFloppy, res.BootDeviceSelector())
 }

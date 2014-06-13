@@ -8,7 +8,7 @@ import "fmt"
 type Command uint8
 
 // Command Number Assignments (table G-1)
-var (
+const (
 	CommandGetDeviceID              = Command(0x01)
 	CommandGetAuthCapabilities      = Command(0x38)
 	CommandGetSessionChallenge      = Command(0x39)
@@ -16,7 +16,9 @@ var (
 	CommandSetSessionPrivilegeLevel = Command(0x3b)
 	CommandCloseSession             = Command(0x3c)
 	CommandChassisControl           = Command(0x02)
+	CommandChassisStatus            = Command(0x01)
 	CommandSetSystemBootOptions     = Command(0x08)
+	CommandGetSystemBootOptions     = Command(0x09)
 )
 
 // CompletionCode is the first byte in the data field of all IPMI responses

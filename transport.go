@@ -13,7 +13,12 @@ type transport interface {
 func newTransport(c *Connection) (transport, error) {
 	switch c.Interface {
 	case "lan":
-		return newLanTransport(c), nil
+		if c.Path == "" {
+			return newLanTransport(c), nil
+		}
+		return newToolTransport(c), nil
+	case "lanplus":
+		return newToolTransport(c), nil
 	default:
 		return nil, fmt.Errorf("unsupported interface: %s", c.Interface)
 	}

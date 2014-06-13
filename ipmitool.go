@@ -4,6 +4,7 @@ package ipmi
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os/exec"
@@ -21,9 +22,60 @@ type Connection struct {
 	Interface string
 }
 
-type rawRequest interface {
-	request() []byte // input for impitool raw
-	parse([]byte)    // parse output of ipmitool raw
+type tool struct {
+	*Connection
+}
+
+func newToolTransport(c *Connection) transport {
+	return &tool{Connection: c}
+}
+
+func (t *tool) open() error {
+	return nil
+}
+
+func (t *tool) close() error {
+	return nil
+}
+
+func (t *tool) send(req *Request, res Response) error {
+	// ipmitool ... raw .. .. ..
+	args := append([]string{"raw"}, requestToStrings(req)...)
+
+	output, err := t.run(args...)
+	if err != nil {
+		// TODO: parse CompletionCode from stderr
+		return err
+	}
+
+	return responseFromString(output, res)
+}
+
+func requestToBytes(r *Request) []byte {
+	msg := []byte{
+		uint8(r.NetworkFunction),
+		uint8(r.Command),
+	}
+	buf := new(bytes.Buffer)
+	binaryWrite(buf, r.Data)
+	return append(msg, buf.Bytes()...)
+}
+
+func requestToStrings(r *Request) []string {
+	msg := requestToBytes(r)
+	return rawEncode(msg)
+}
+
+func responseFromBytes(msg []byte, r Response) error {
+	buf := new(bytes.Buffer)
+	buf.WriteByte(uint8(CommandCompleted))
+	buf.Write(msg)
+	return binary.Read(buf, binary.LittleEndian, r)
+}
+
+func responseFromString(s string, r Response) error {
+	msg := rawDecode(strings.TrimSpace(s))
+	return responseFromBytes(msg, r)
 }
 
 func (c *Connection) options() []string {
@@ -100,37 +152,10 @@ func rawEncode(data []byte) []string {
 	return buf
 }
 
-func (c *Connection) raw(r rawRequest) error {
-	// ipmitool ... raw .. .. ..
-	args := []string{"raw"}
-	args = append(args, rawEncode(r.request())...)
-
-	output, err := c.run(args...)
-	if err != nil {
-		return err
-	}
-
-	r.parse(rawDecode(strings.TrimSpace(output)))
-
-	return nil
-}
-
-func (c *Connection) ChassisStatus() (*ChassisStatus, error) {
-	// ipmitool ... chassis status
-	s := &ChassisStatus{}
-	return s, c.raw(s)
-}
-
 func (c *Connection) SetBootDevice(device BootDevice) error {
 	// impitool ... chassis bootdev pxe|floppy|etc
 	_, err := c.run("chassis", "bootdev", device.String())
 	return err
-}
-
-func (c *Connection) GetBootFlags() (*BootFlags, error) {
-	// ipmitool ... chassis bootparam get 5
-	flags := &BootFlags{}
-	return flags, c.raw(flags)
 }
 
 func (c *Connection) ChassisControl(ctl ChassisControl) error {

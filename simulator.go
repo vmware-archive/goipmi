@@ -28,11 +28,9 @@ type Simulator struct {
 // NewSimulator constructs a Simulator with the given addr
 func NewSimulator(addr net.UDPAddr) *Simulator {
 	s := &Simulator{
-		addr: addr,
-		ids:  map[uint32]string{},
-		handlers: map[NetworkFunction]map[Command]Handler{
-			NetworkFunctionChassis: map[Command]Handler{},
-		},
+		addr:     addr,
+		ids:      map[uint32]string{},
+		handlers: map[NetworkFunction]map[Command]Handler{},
 	}
 
 	// Built-in handlers for session management
@@ -43,6 +41,11 @@ func NewSimulator(addr net.UDPAddr) *Simulator {
 		CommandActivateSession:          s.sessionActivate,
 		CommandSetSessionPrivilegeLevel: s.sessionPrivilege,
 		CommandCloseSession:             s.sessionClose,
+	}
+
+	// Built-in handlers for chassis commands
+	s.handlers[NetworkFunctionChassis] = map[Command]Handler{
+		CommandChassisStatus: s.chassisStatus,
 	}
 
 	return s
@@ -93,6 +96,13 @@ func (s *Simulator) Run() error {
 func (s *Simulator) Stop() {
 	_ = s.conn.Close()
 	s.wg.Wait()
+}
+
+func (s *Simulator) chassisStatus(*Message) Response {
+	return &ChassisStatusResponse{
+		CompletionCode: CommandCompleted,
+		PowerState:     SystemPower,
+	}
 }
 
 func (s *Simulator) deviceID(*Message) Response {
