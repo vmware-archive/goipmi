@@ -88,13 +88,23 @@ type SystemBootOptionsResponse struct {
 	CompletionCode
 	Version uint8
 	Param   uint8
-	// Data    [...]uint8
+	Data    []uint8
 }
 
-// SystemBootFlagsResponse per section 28.13; table 28 #5 "boot flags"
-type SystemBootFlagsResponse struct {
-	SystemBootOptionsResponse
-	Data [5]uint8
+// UnmarshalBinary implementation to handle variable length Data
+func (r *SystemBootOptionsResponse) UnmarshalBinary(buf []byte) error {
+	if len(buf) < 3 {
+		return ErrShortPacket
+	}
+	r.CompletionCode = CompletionCode(buf[0])
+	r.Version = buf[1]
+	r.Param = buf[2]
+	r.Data = buf[3:]
+	return nil
+}
+
+func (r *SystemBootOptionsResponse) BootDeviceSelector() BootDevice {
+	return BootDevice((r.Data[1] >> 2) & 0x0f)
 }
 
 func (s *ChassisStatusResponse) IsSystemPowerOn() bool {
@@ -110,10 +120,6 @@ func (s *ChassisStatusResponse) String() string {
 
 func (s *ChassisStatusResponse) PowerRestorePolicy() uint8 {
 	return (s.PowerState & 0x60) >> 5
-}
-
-func (r *SystemBootFlagsResponse) BootDeviceSelector() BootDevice {
-	return BootDevice((r.Data[1] >> 2) & 0x0f)
 }
 
 func (d BootDevice) String() string {

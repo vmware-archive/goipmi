@@ -4,7 +4,6 @@ package ipmi
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os/exec"
@@ -52,13 +51,12 @@ func (t *tool) send(req *Request, res Response) error {
 }
 
 func requestToBytes(r *Request) []byte {
-	msg := []byte{
-		uint8(r.NetworkFunction),
-		uint8(r.Command),
-	}
-	buf := new(bytes.Buffer)
-	binaryWrite(buf, r.Data)
-	return append(msg, buf.Bytes()...)
+	data := messageDataToBytes(r.Data)
+	msg := make([]byte, 2+len(data))
+	msg[0] = uint8(r.NetworkFunction)
+	msg[1] = uint8(r.Command)
+	copy(msg[2:], data)
+	return msg
 }
 
 func requestToStrings(r *Request) []string {
@@ -70,7 +68,7 @@ func responseFromBytes(msg []byte, r Response) error {
 	buf := new(bytes.Buffer)
 	buf.WriteByte(uint8(CommandCompleted))
 	buf.Write(msg)
-	return binary.Read(buf, binary.LittleEndian, r)
+	return messageDataFromBytes(buf.Bytes(), r)
 }
 
 func responseFromString(s string, r Response) error {

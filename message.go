@@ -4,6 +4,7 @@ package ipmi
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/binary"
 	"errors"
 
@@ -72,7 +73,14 @@ func (m *Message) Response(data Response) error {
 	if m.CompletionCode() != CommandCompleted {
 		return m.CompletionCode()
 	}
-	return binary.Read(bytes.NewBuffer(m.Data), binary.LittleEndian, data)
+	return messageDataFromBytes(m.Data, data)
+}
+
+func messageDataFromBytes(buf []byte, data Response) error {
+	if decoder, ok := data.(encoding.BinaryUnmarshaler); ok {
+		return decoder.UnmarshalBinary(buf)
+	}
+	return binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, data)
 }
 
 func messageFromBytes(buf []byte) (*Message, error) {
@@ -122,7 +130,21 @@ func messageFromBytes(buf []byte) (*Message, error) {
 	return m, nil
 }
 
+func messageDataToBytes(data interface{}) []byte {
+	if encoder, ok := data.(encoding.BinaryMarshaler); ok {
+		buf, err := encoder.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		return buf
+	}
+	buf := new(bytes.Buffer)
+	binaryWrite(buf, data)
+	return buf.Bytes()
+}
+
 func (m *Message) toBytes(data interface{}) []byte {
+	dbuf := messageDataToBytes(data)
 	buf := new(bytes.Buffer)
 
 	binaryWrite(buf, m.rmcpHeader)
@@ -131,12 +153,12 @@ func (m *Message) toBytes(data interface{}) []byte {
 		binaryWrite(buf, m.AuthCode)
 	}
 
-	m.MsgLen = uint8(ipmiHeaderSize + binary.Size(data))
+	m.MsgLen = uint8(ipmiHeaderSize + len(dbuf))
 	m.Checksum = m.headerChecksum()
 	binaryWrite(buf, m.ipmiHeader)
 
 	dlen := buf.Len()
-	binaryWrite(buf, data)
+	_, _ = buf.Write(dbuf)
 	binaryWrite(buf, m.payloadChecksum(buf.Bytes()[dlen:]))
 
 	return buf.Bytes()

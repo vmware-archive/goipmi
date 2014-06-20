@@ -49,7 +49,7 @@ func TestBootFlagsRequest(t *testing.T) {
 }
 
 func TestBootFlagsParse(t *testing.T) {
-	res := &SystemBootFlagsResponse{}
+	res := &SystemBootOptionsResponse{}
 	err := responseFromString("01 05 80 3c 00 00 00", res)
 	assert.NoError(t, err)
 	assert.Equal(t, BootDeviceFloppy, res.BootDeviceSelector())
