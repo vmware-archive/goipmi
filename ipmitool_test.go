@@ -80,6 +80,38 @@ func TestTool(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint8(SystemPower), csr.PowerState)
 
+	// Set Boot Options
+	data := []uint8{0x80, uint8(BootDevicePxe) | 0x40}
+	req = &Request{
+		NetworkFunctionChassis,
+		CommandSetSystemBootOptions,
+		&SetSystemBootOptionsRequest{
+			Param: BootParamBootFlags,
+			Data:  data,
+		},
+	}
+	err = tr.send(req, &SetSystemBootOptionsResponse{})
+	assert.Error(t, err) // ErrShortPacket
+	// resend with valid Data length
+	req.Data.(*SetSystemBootOptionsRequest).Data = append(data, 0x00, 0x00, 0x00)
+	err = tr.send(req, &SetSystemBootOptionsResponse{})
+	assert.NoError(t, err)
+
+	// Get Boot Options
+	req = &Request{
+		NetworkFunctionChassis,
+		CommandGetSystemBootOptions,
+		&SystemBootOptionsRequest{
+			Param: BootParamBootFlags,
+		},
+	}
+	bor := &SystemBootOptionsResponse{}
+	err = tr.send(req, bor)
+	assert.NoError(t, err)
+	assert.Equal(t, uint8(BootParamBootFlags), bor.Param)
+	assert.Equal(t, uint8(BootDevicePxe), bor.BootDeviceSelector())
+	assert.Equal(t, uint8(0x40), bor.Data[1]&0x40)
+
 	// Invalid command
 	req.Command = 0xff
 	err = tr.send(req, &DeviceIDResponse{})

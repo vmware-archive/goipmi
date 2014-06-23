@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/binary"
-	"errors"
 
 	"io"
 )
@@ -36,12 +35,6 @@ var (
 	NetworkFunctionApp     = NetworkFunction(0x06)
 )
 
-// General errors
-var (
-	ErrShortPacket   = errors.New("ipmi: short packet")
-	ErrInvalidPacket = errors.New("ipmi: invalid packet")
-)
-
 var (
 	ipmiHeaderSize  = binary.Size(ipmiHeader{})
 	ipmiSessionSize = binary.Size(ipmiSession{})
@@ -68,6 +61,20 @@ func (m *Message) CompletionCode() CompletionCode {
 	return CompletionCode(m.Data[0])
 }
 
+// Request specific to the request IPMI command
+// Unmarshal errors are returned as a Response such that they can be
+// propagated to the client.
+func (m *Message) Request(data interface{}) Response {
+	err := messageDataFromBytes(m.Data, data)
+	if err != nil {
+		if e, ok := err.(CompletionCode); ok {
+			return e
+		}
+		return UnspecifiedError
+	}
+	return nil
+}
+
 // Response specific to the request IPMI command
 func (m *Message) Response(data Response) error {
 	if m.CompletionCode() != CommandCompleted {
@@ -76,7 +83,7 @@ func (m *Message) Response(data Response) error {
 	return messageDataFromBytes(m.Data, data)
 }
 
-func messageDataFromBytes(buf []byte, data Response) error {
+func messageDataFromBytes(buf []byte, data interface{}) error {
 	if decoder, ok := data.(encoding.BinaryUnmarshaler); ok {
 		return decoder.UnmarshalBinary(buf)
 	}

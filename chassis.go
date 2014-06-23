@@ -13,14 +13,14 @@ const (
 	ControlPowerPulseDiag = ChassisControl(0x4)
 	ControlPowerAcpiSoft  = ChassisControl(0x5)
 
-	BootDeviceNone   = BootDevice(0)
-	BootDevicePxe    = BootDevice(1)
-	BootDeviceDisk   = BootDevice(2)
-	BootDeviceSafe   = BootDevice(3)
-	BootDeviceDiag   = BootDevice(4)
-	BootDeviceCdrom  = BootDevice(5)
-	BootDeviceBios   = BootDevice(6)
-	BootDeviceFloppy = BootDevice(15)
+	BootDeviceNone   = BootDevice(0x00)
+	BootDevicePxe    = BootDevice(0x04)
+	BootDeviceDisk   = BootDevice(0x08)
+	BootDeviceSafe   = BootDevice(0x0c)
+	BootDeviceDiag   = BootDevice(0x10)
+	BootDeviceCdrom  = BootDevice(0x14)
+	BootDeviceBios   = BootDevice(0x18)
+	BootDeviceFloppy = BootDevice(0x3c)
 
 	SystemPower       = 0x1
 	PowerOverload     = 0x2
@@ -53,6 +53,15 @@ const (
 	DiagButtonDisabled  = 0x04
 	ResetButtonDisabled = 0x02
 	PowerButtonDisabled = 0x01
+
+	BootParamSetInProgress = 0x0
+	BootParamSvcPartSelect = 0x1
+	BootParamSvcPartScan   = 0x2
+	BootParamFlagValid     = 0x3
+	BootParamInfoAck       = 0x4
+	BootParamBootFlags     = 0x5
+	BootParamInitInfo      = 0x6
+	BootParamInitMbox      = 0x7
 )
 
 // ChassisStatusRequest per section 28.3
@@ -74,7 +83,9 @@ type SetSystemBootOptionsRequest struct {
 }
 
 // SetSystemBootOptionsResponse per section 28.12
-type SetSystemBootOptionsResponse struct{}
+type SetSystemBootOptionsResponse struct {
+	CompletionCode
+}
 
 // SystemBootOptionsRequest per section 28.13
 type SystemBootOptionsRequest struct {
@@ -91,6 +102,44 @@ type SystemBootOptionsResponse struct {
 	Data    []uint8
 }
 
+// MarshalBinary implementation to handle variable length Data
+func (r *SetSystemBootOptionsRequest) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, 1+len(r.Data))
+	buf[0] = r.Param
+	copy(buf[1:], r.Data)
+	return buf, nil
+}
+
+var validSetBootOptionsDataLength = map[uint8]int{
+	BootParamInfoAck:   2,
+	BootParamBootFlags: 5,
+}
+
+// UnmarshalBinary implementation to handle variable length Data
+func (r *SetSystemBootOptionsRequest) UnmarshalBinary(buf []byte) error {
+	if len(buf) < 2 {
+		return ErrShortPacket
+	}
+	r.Param = buf[0]
+	r.Data = buf[1:]
+	if l, ok := validSetBootOptionsDataLength[r.Param]; ok {
+		if len(r.Data) < l {
+			return ErrShortPacket
+		}
+	}
+	return nil
+}
+
+// MarshalBinary implementation to handle variable length Data
+func (r *SystemBootOptionsResponse) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, 3+len(r.Data))
+	buf[0] = byte(r.CompletionCode)
+	buf[1] = r.Version
+	buf[2] = r.Param
+	copy(buf[3:], r.Data)
+	return buf, nil
+}
+
 // UnmarshalBinary implementation to handle variable length Data
 func (r *SystemBootOptionsResponse) UnmarshalBinary(buf []byte) error {
 	if len(buf) < 3 {
@@ -104,7 +153,7 @@ func (r *SystemBootOptionsResponse) UnmarshalBinary(buf []byte) error {
 }
 
 func (r *SystemBootOptionsResponse) BootDeviceSelector() BootDevice {
-	return BootDevice((r.Data[1] >> 2) & 0x0f)
+	return BootDevice(((r.Data[1] >> 2) & 0x0f) << 2)
 }
 
 func (s *ChassisStatusResponse) IsSystemPowerOn() bool {

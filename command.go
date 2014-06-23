@@ -31,13 +31,15 @@ func (c CompletionCode) Code() uint8 {
 
 // Error for CompletionCode
 func (c CompletionCode) Error() string {
-	return fmt.Sprintf("Completion Code: %d", c)
+	return fmt.Sprintf("Completion Code: %X", uint8(c))
 }
 
 // Completion Codes per section 5.2
-var (
+const (
 	CommandCompleted       = CompletionCode(0x00)
 	InvalidCommand         = CompletionCode(0xc1)
+	ErrShortPacket         = CompletionCode(0xc7)
+	ErrInvalidPacket       = CompletionCode(0xcc)
 	DestinationUnavailable = CompletionCode(0xd3)
 	UnspecifiedError       = CompletionCode(0xff)
 )

@@ -23,6 +23,7 @@ type Simulator struct {
 	conn     *net.UDPConn
 	handlers map[NetworkFunction]map[Command]Handler
 	ids      map[uint32]string
+	bopts    [BootParamInitMbox + 1][]uint8
 }
 
 // NewSimulator constructs a Simulator with the given addr
@@ -45,7 +46,9 @@ func NewSimulator(addr net.UDPAddr) *Simulator {
 
 	// Built-in handlers for chassis commands
 	s.handlers[NetworkFunctionChassis] = map[Command]Handler{
-		CommandChassisStatus: s.chassisStatus,
+		CommandChassisStatus:        s.chassisStatus,
+		CommandGetSystemBootOptions: s.getSystemBootOptions,
+		CommandSetSystemBootOptions: s.setSystemBootOptions,
 	}
 
 	return s
@@ -103,6 +106,31 @@ func (s *Simulator) chassisStatus(*Message) Response {
 		CompletionCode: CommandCompleted,
 		PowerState:     SystemPower,
 	}
+}
+
+func (s *Simulator) getSystemBootOptions(m *Message) Response {
+	r := &SystemBootOptionsRequest{}
+	if err := m.Request(r); err != nil {
+		return err
+	}
+
+	return &SystemBootOptionsResponse{
+		CompletionCode: CommandCompleted,
+		Version:        0x01,
+		Param:          r.Param,
+		Data:           s.bopts[r.Param],
+	}
+}
+
+func (s *Simulator) setSystemBootOptions(m *Message) Response {
+	r := &SetSystemBootOptionsRequest{}
+	if err := m.Request(r); err != nil {
+		return err
+	}
+
+	s.bopts[r.Param] = r.Data
+
+	return &SetSystemBootOptionsResponse{}
 }
 
 func (s *Simulator) deviceID(*Message) Response {

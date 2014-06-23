@@ -17,6 +17,12 @@ func TestSimulator(t *testing.T) {
 	c := s.NewConnection()
 	c.Username = "foo"
 
+	for _, cmd := range []Command{CommandChassisControl, CommandSetSystemBootOptions} {
+		s.SetHandler(NetworkFunctionChassis, cmd, func(*Message) Response {
+			return UnspecifiedError
+		})
+	}
+
 	err = c.EnableNetworkBoot()
 	assert.Error(t, err)
 

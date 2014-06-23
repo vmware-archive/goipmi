@@ -41,7 +41,7 @@ func TestBootFlagsRequest(t *testing.T) {
 		NetworkFunctionChassis,
 		CommandGetSystemBootOptions,
 		&SystemBootOptionsRequest{
-			Param: 0x05,
+			Param: BootParamBootFlags,
 		},
 	}
 	raw := requestToStrings(req)
