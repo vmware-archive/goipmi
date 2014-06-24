@@ -191,7 +191,7 @@ func (s *Simulator) sessionClose(*Message) Response {
 }
 
 func (s *Simulator) ipmiCommand(m *Message) []byte {
-	response := Response(InvalidCommand)
+	response := Response(ErrInvalidCommand)
 
 	if commands, ok := s.handlers[m.NetFn()]; ok {
 		if handler, ok := commands[m.Command]; ok {

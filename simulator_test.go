@@ -22,7 +22,7 @@ func TestSimulator(t *testing.T) {
 
 	for _, cmd := range []Command{CommandChassisControl, CommandSetSystemBootOptions} {
 		s.SetHandler(NetworkFunctionChassis, cmd, func(*Message) Response {
-			return UnspecifiedError
+			return ErrUnspecified
 		})
 	}
 

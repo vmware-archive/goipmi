@@ -70,7 +70,7 @@ func (m *Message) Request(data interface{}) Response {
 		if e, ok := err.(CompletionCode); ok {
 			return e
 		}
-		return UnspecifiedError
+		return ErrUnspecified
 	}
 	return nil
 }

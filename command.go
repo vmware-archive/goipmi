@@ -2,8 +2,6 @@
 
 package ipmi
 
-import "fmt"
-
 // Command fields on an IPMI message
 type Command uint8
 
@@ -19,29 +17,6 @@ const (
 	CommandChassisStatus            = Command(0x01)
 	CommandSetSystemBootOptions     = Command(0x08)
 	CommandGetSystemBootOptions     = Command(0x09)
-)
-
-// CompletionCode is the first byte in the data field of all IPMI responses
-type CompletionCode uint8
-
-// Code returns the CompletionCode as uint8
-func (c CompletionCode) Code() uint8 {
-	return uint8(c)
-}
-
-// Error for CompletionCode
-func (c CompletionCode) Error() string {
-	return fmt.Sprintf("Completion Code: %X", uint8(c))
-}
-
-// Completion Codes per section 5.2
-const (
-	CommandCompleted       = CompletionCode(0x00)
-	InvalidCommand         = CompletionCode(0xc1)
-	ErrShortPacket         = CompletionCode(0xc7)
-	ErrInvalidPacket       = CompletionCode(0xcc)
-	DestinationUnavailable = CompletionCode(0xd3)
-	UnspecifiedError       = CompletionCode(0xff)
 )
 
 // Request structure

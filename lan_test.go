@@ -42,7 +42,7 @@ func TestLAN(t *testing.T) {
 
 	req.Command = 0xff
 	err = tr.send(req, res)
-	assert.Equal(t, InvalidCommand, err)
+	assert.Equal(t, ErrInvalidCommand, err)
 
 	err = tr.close()
 	assert.NoError(t, err)
