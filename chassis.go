@@ -64,16 +64,26 @@ const (
 	BootParamInitMbox      = 0x7
 )
 
-// ChassisStatusRequest per section 28.3
+// ChassisStatusRequest per section 28.2
 type ChassisStatusRequest struct{}
 
-// ChassisStatusResponse per section 28.3
+// ChassisStatusResponse per section 28.2
 type ChassisStatusResponse struct {
 	CompletionCode
 	PowerState        uint8
 	LastPowerEvent    uint8
 	State             uint8
 	FrontControlPanel uint8
+}
+
+// ChassisControlRequest per section 28.3
+type ChassisControlRequest struct {
+	ChassisControl
+}
+
+// ChassisControlResponse per section 28.3
+type ChassisControlResponse struct {
+	CompletionCode
 }
 
 // SetSystemBootOptionsRequest per section 28.12
