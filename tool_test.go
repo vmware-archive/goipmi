@@ -33,7 +33,7 @@ func TestOptions(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := test.conn.options()
+		result := newToolTransport(test.conn).(*tool).options()
 		assert.Equal(t, test.expect, result, test.should)
 	}
 }

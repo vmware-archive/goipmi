@@ -2,6 +2,16 @@
 
 package ipmi
 
+// Connection properties for a Client
+type Connection struct {
+	Path      string
+	Hostname  string
+	Port      int
+	Username  string
+	Password  string
+	Interface string
+}
+
 // Client provides common high level functionality around the underlying transport
 type Client struct {
 	transport

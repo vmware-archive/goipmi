@@ -11,16 +11,6 @@ import (
 	"strings"
 )
 
-// Connection wraps the ipmitool program arguments
-type Connection struct {
-	Path      string
-	Hostname  string
-	Port      int
-	Username  string
-	Password  string
-	Interface string
-}
-
 type tool struct {
 	*Connection
 }
@@ -50,55 +40,29 @@ func (t *tool) send(req *Request, res Response) error {
 	return responseFromString(output, res)
 }
 
-func requestToBytes(r *Request) []byte {
-	data := messageDataToBytes(r.Data)
-	msg := make([]byte, 2+len(data))
-	msg[0] = uint8(r.NetworkFunction)
-	msg[1] = uint8(r.Command)
-	copy(msg[2:], data)
-	return msg
-}
-
-func requestToStrings(r *Request) []string {
-	msg := requestToBytes(r)
-	return rawEncode(msg)
-}
-
-func responseFromBytes(msg []byte, r Response) error {
-	buf := new(bytes.Buffer)
-	buf.WriteByte(uint8(CommandCompleted))
-	buf.Write(msg)
-	return messageDataFromBytes(buf.Bytes(), r)
-}
-
-func responseFromString(s string, r Response) error {
-	msg := rawDecode(strings.TrimSpace(s))
-	return responseFromBytes(msg, r)
-}
-
-func (c *Connection) options() []string {
-	intf := c.Interface
+func (t *tool) options() []string {
+	intf := t.Interface
 	if intf == "" {
 		intf = "lanplus"
 	}
 
 	options := []string{
-		"-H", c.Hostname,
-		"-U", c.Username,
-		"-P", c.Password,
+		"-H", t.Hostname,
+		"-U", t.Username,
+		"-P", t.Password,
 		"-I", intf,
 	}
 
-	if c.Port != 0 {
-		options = append(options, "-p", strconv.Itoa(c.Port))
+	if t.Port != 0 {
+		options = append(options, "-p", strconv.Itoa(t.Port))
 	}
 
 	return options
 }
 
-func (c *Connection) run(args ...string) (string, error) {
-	path := c.Path
-	opts := append(c.options(), args...)
+func (t *tool) run(args ...string) (string, error) {
+	path := t.Path
+	opts := append(t.options(), args...)
 
 	if path == "" {
 		path = "ipmitool"
@@ -118,6 +82,32 @@ func (c *Connection) run(args ...string) (string, error) {
 	}
 
 	return stdout.String(), err
+}
+
+func requestToBytes(r *Request) []byte {
+	data := messageDataToBytes(r.Data)
+	msg := make([]byte, 2+len(data))
+	msg[0] = uint8(r.NetworkFunction)
+	msg[1] = uint8(r.Command)
+	copy(msg[2:], data)
+	return msg
+}
+
+func requestToStrings(r *Request) []string {
+	msg := requestToBytes(r)
+	return rawEncode(msg)
+}
+
+func responseFromBytes(msg []byte, r Response) error {
+	buf := make([]byte, 1+len(msg))
+	buf[0] = uint8(CommandCompleted)
+	copy(buf[1:], msg)
+	return messageDataFromBytes(buf, r)
+}
+
+func responseFromString(s string, r Response) error {
+	msg := rawDecode(strings.TrimSpace(s))
+	return responseFromBytes(msg, r)
 }
 
 func rawDecode(data string) []byte {
