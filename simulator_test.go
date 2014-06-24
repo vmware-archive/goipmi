@@ -15,7 +15,10 @@ func TestSimulator(t *testing.T) {
 	assert.NoError(t, err)
 
 	c := s.NewConnection()
-	c.Username = "foo"
+	client, err := NewClient(c)
+	assert.NoError(t, err)
+	err = client.Open()
+	assert.NoError(t, err)
 
 	for _, cmd := range []Command{CommandChassisControl, CommandSetSystemBootOptions} {
 		s.SetHandler(NetworkFunctionChassis, cmd, func(*Message) Response {
@@ -23,10 +26,10 @@ func TestSimulator(t *testing.T) {
 		})
 	}
 
-	err = c.EnableNetworkBoot()
+	err = client.SetBootDevice(BootDevicePxe)
 	assert.Error(t, err)
 
-	err = c.PowerCycle()
+	err = client.Control(ControlPowerCycle)
 	assert.Error(t, err)
 
 	var calledControl, calledOptions bool
@@ -43,12 +46,13 @@ func TestSimulator(t *testing.T) {
 		return CommandCompleted
 	})
 
-	err = c.EnableNetworkBoot()
+	err = client.SetBootDevice(BootDevicePxe)
 	assert.NoError(t, err)
 	assert.True(t, calledOptions)
-	err = c.PowerCycle()
+	err = client.Control(ControlPowerCycle)
 	assert.NoError(t, err)
 	assert.True(t, calledControl)
 
+	client.Close()
 	s.Stop()
 }

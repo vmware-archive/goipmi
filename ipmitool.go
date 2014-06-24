@@ -149,25 +149,3 @@ func rawEncode(data []byte) []string {
 
 	return buf
 }
-
-func (c *Connection) SetBootDevice(device BootDevice) error {
-	// impitool ... chassis bootdev pxe|floppy|etc
-	_, err := c.run("chassis", "bootdev", device.String())
-	return err
-}
-
-func (c *Connection) ChassisControl(ctl ChassisControl) error {
-	// impitool ... power up|down|cycle|etc
-	_, err := c.run("power", ctl.String())
-	return err
-}
-
-// EnableNetworkBoot implementation of the jessup.Control interface
-func (c *Connection) EnableNetworkBoot() error {
-	return c.SetBootDevice(BootDevicePxe)
-}
-
-// PowerCycle implementation of the jessup.Control interface
-func (c *Connection) PowerCycle() error {
-	return c.ChassisControl(ControlPowerCycle)
-}
