@@ -13,14 +13,18 @@ const (
 	ControlPowerPulseDiag = ChassisControl(0x4)
 	ControlPowerAcpiSoft  = ChassisControl(0x5)
 
-	BootDeviceNone   = BootDevice(0x00)
-	BootDevicePxe    = BootDevice(0x04)
-	BootDeviceDisk   = BootDevice(0x08)
-	BootDeviceSafe   = BootDevice(0x0c)
-	BootDeviceDiag   = BootDevice(0x10)
-	BootDeviceCdrom  = BootDevice(0x14)
-	BootDeviceBios   = BootDevice(0x18)
-	BootDeviceFloppy = BootDevice(0x3c)
+	BootDeviceNone          = BootDevice(0x00)
+	BootDevicePxe           = BootDevice(0x04)
+	BootDeviceDisk          = BootDevice(0x08)
+	BootDeviceSafe          = BootDevice(0x0c)
+	BootDeviceDiag          = BootDevice(0x10)
+	BootDeviceCdrom         = BootDevice(0x14)
+	BootDeviceBios          = BootDevice(0x18)
+	BootDeviceRemoteFloppy  = BootDevice(0x1c)
+	BootDeviceRemotePrimary = BootDevice(0x24)
+	BootDeviceRemoteCdrom   = BootDevice(0x20)
+	BootDeviceRemoteDisk    = BootDevice(0x2c)
+	BootDeviceFloppy        = BootDevice(0x3c)
 
 	SystemPower       = 0x1
 	PowerOverload     = 0x2
@@ -181,26 +185,26 @@ func (s *ChassisStatusResponse) PowerRestorePolicy() uint8 {
 	return (s.PowerState & 0x60) >> 5
 }
 
+var bootDeviceStrings = map[BootDevice]string{
+	BootDeviceNone:          "none",
+	BootDevicePxe:           "pxe",
+	BootDeviceDisk:          "disk",
+	BootDeviceSafe:          "safe",
+	BootDeviceDiag:          "diag",
+	BootDeviceCdrom:         "cdrom",
+	BootDeviceBios:          "bios",
+	BootDeviceRemoteFloppy:  "rfloppy",
+	BootDeviceRemotePrimary: "rprimary",
+	BootDeviceRemoteCdrom:   "rcdrom",
+	BootDeviceRemoteDisk:    "rdisk",
+	BootDeviceFloppy:        "floppy",
+}
+
 func (d BootDevice) String() string {
-	switch d {
-	case BootDeviceNone:
-		return "none"
-	case BootDevicePxe:
-		return "pxe"
-	case BootDeviceDisk:
-		return "disk"
-	case BootDeviceSafe:
-		return "safe"
-	case BootDeviceDiag:
-		return "diag"
-	case BootDeviceCdrom:
-		return "cdrom"
-	case BootDeviceBios:
-		return "bios"
-	case BootDeviceFloppy:
-		return "floppy"
+	if s, ok := bootDeviceStrings[d]; ok {
+		return s
 	}
-	panic("unknown device")
+	return "unknown"
 }
 
 func (c ChassisControl) String() string {
