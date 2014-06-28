@@ -43,7 +43,7 @@ type DeviceIDResponse struct {
 	FirmwareRevision2       uint8
 	IPMIVersion             uint8
 	AdditionalDeviceSupport uint8
-	ManufacturerID          uint16
+	ManufacturerID          OemID
 	ProductID               uint16
 }
 
