@@ -10,6 +10,8 @@ type Connection struct {
 	Username  string
 	Password  string
 	Interface string
+	SSHPort   int
+	SSHOpts   []string
 }
 
 // Client provides common high level functionality around the underlying transport
