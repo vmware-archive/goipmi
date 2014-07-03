@@ -67,7 +67,7 @@ func TestRunSSH(t *testing.T) {
 		{
 			Username: "ssh",
 			Password: "",
-			SSHOpts:  []string{"-o", "BatchMode=yes"},
+			SSHOpts:  []string{"-o", "SendEnv=HOME"},
 		},
 	}
 
