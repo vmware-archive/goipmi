@@ -81,13 +81,13 @@ func TestRunSSH(t *testing.T) {
 
 	for _, c := range conns {
 		for _, test := range tests {
-			var lastCmd string
+			cmds := []string{}
 			status := test.status
 
 			c.Hostname = "127.0.0.1"
 
 			wg := sshTestExecServer(c, func(ch ssh.Channel, cmd string) int {
-				lastCmd = cmd
+				cmds = append(cmds, cmd)
 				return status
 			})
 
@@ -97,7 +97,8 @@ func TestRunSSH(t *testing.T) {
 			} else {
 				assert.Error(t, err)
 			}
-			assert.Equal(t, test.cmd, lastCmd)
+			assert.Equal(t, 1, len(cmds))
+			assert.Equal(t, test.cmd, cmds[0])
 
 			wg.Wait()
 		}

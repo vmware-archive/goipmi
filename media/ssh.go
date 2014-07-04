@@ -134,6 +134,7 @@ func sshTestExecServer(ic *ipmi.Connection, handler func(ssh.Channel, string) in
 			for req := range requests {
 				if req.Type == "env" {
 					_ = req.Reply(true, nil)
+					continue
 				} else if req.Type != "exec" {
 					panic(req.Type)
 				}
