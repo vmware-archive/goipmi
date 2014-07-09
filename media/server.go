@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"sync"
 )
@@ -16,7 +15,7 @@ type server struct {
 	wg       sync.WaitGroup
 	addr     net.TCPAddr
 	listener net.Listener
-	url      *url.URL
+	url      map[ipmi.BootDevice]string
 	c        *ipmi.Connection
 }
 
@@ -38,30 +37,38 @@ func (s *server) hostIP() (string, error) {
 	return host, err
 }
 
-func (s *server) Mount(file string) error {
+func (s *server) Mount(media *VirtualMedia) error {
 	listener, err := net.ListenTCP("tcp4", &s.addr)
 	if err != nil {
 		return err
 	}
 
+	port := listener.Addr().(*net.TCPAddr).Port
 	host, err := s.hostIP()
 	if err != nil {
 		return err
 	}
 
 	s.listener = listener
+	mux := http.NewServeMux()
+	s.url = make(map[ipmi.BootDevice]string)
 
-	s.url = &url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%d", host, listener.Addr().(*net.TCPAddr).Port),
-		Path:   fmt.Sprintf("/image%s", filepath.Ext(file)),
+	handlers := map[ipmi.BootDevice]string{
+		ipmi.BootDeviceRemoteCdrom:  media.CdromImage,
+		ipmi.BootDeviceRemoteFloppy: media.FloppyImage,
 	}
 
-	mux := http.NewServeMux()
+	for dev, file := range handlers {
+		if file == "" {
+			continue
+		}
+		path := fmt.Sprintf("/%s", filepath.Base(file))
+		s.url[dev] = fmt.Sprintf("http://%s:%d%s", host, port, path)
 
-	mux.HandleFunc(s.url.Path, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, file)
-	})
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, file)
+		})
+	}
 
 	s.wg.Add(1)
 

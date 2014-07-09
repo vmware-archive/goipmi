@@ -11,22 +11,20 @@ import (
 
 func TestMedia(t *testing.T) {
 	tests := []struct {
-		id  ipmi.OemID
-		ok  bool
-		dev ipmi.BootDevice
+		id ipmi.OemID
+		ok bool
 	}{
-		{ipmi.OemHP, true, ipmi.BootDeviceNone},
-		{ipmi.OemDell, true, ipmi.BootDeviceRemoteFloppy},
-		{ipmi.OemBroadcom, false, 0},
+		{ipmi.OemHP, true},
+		{ipmi.OemDell, true},
+		{ipmi.OemBroadcom, false},
 	}
 
 	for _, test := range tests {
 		c := &ipmi.Connection{}
 		id := &ipmi.DeviceIDResponse{ManufacturerID: test.id}
-		m, err := New(c, id)
+		_, err := New(c, id)
 		if test.ok {
 			assert.NoError(t, err)
-			assert.Equal(t, test.dev, m.BootDevice("foo.img"))
 		} else {
 			assert.Error(t, err)
 		}

@@ -3,7 +3,9 @@
 package media
 
 import (
+	"github.com/vmware/goipmi"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,18 +13,23 @@ import (
 
 func TestServer(t *testing.T) {
 	s := &server{}
-	err := s.Mount("server_test.go")
+	vm := &VirtualMedia{
+		CdromImage: "server_test.go",
+		BootDevice: ipmi.BootDeviceRemoteCdrom,
+	}
+	err := s.Mount(vm)
 	assert.NoError(t, err)
 
-	url := *s.url
-	r, err := http.Get(url.String())
+	surl := s.url[ipmi.BootDeviceRemoteCdrom]
+	r, err := http.Get(surl)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, r.StatusCode)
 
-	url.Path = "/server.go"
-	r, err = http.Get(url.String())
+	u, _ := url.Parse(surl)
+	u.Path = "/server.go"
+	r, err = http.Get(u.String())
 	assert.NoError(t, err)
-	assert.Equal(t, http.StatusNotFound, r.StatusCode)
+	assert.Equal(t, http.StatusNotFound, r.StatusCode, "file exists but should 404")
 
 	err = s.UnMount()
 	assert.NoError(t, err)

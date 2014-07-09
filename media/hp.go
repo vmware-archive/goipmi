@@ -20,19 +20,28 @@ func (*hp) BootDevice(image string) ipmi.BootDevice {
 	return ipmi.BootDeviceNone
 }
 
-func (m *hp) Mount(image string) error {
-	err := m.server.Mount(image)
+func (m *hp) Mount(media *VirtualMedia) error {
+	cmds := []string{}
+	err := m.server.Mount(media)
 	if err != nil {
 		return err
 	}
 
-	mediaType := "floppy"
-	if isISO(image) {
-		mediaType = "cdrom"
+	devices := map[ipmi.BootDevice]string{
+		ipmi.BootDeviceRemoteCdrom:  "cdrom",
+		ipmi.BootDeviceRemoteFloppy: "floppy",
 	}
 
-	return runSSH(m.c,
-		sshCommand("vm", mediaType, "insert", m.url.String()),
-		// iLO v2 does not support setting this over IPMI
-		sshCommand("vm", mediaType, "set", "boot_once"))
+	for dev, name := range devices {
+		if url, ok := m.url[dev]; ok {
+			cmds = append(cmds, sshCommand("vm", name, "insert", url))
+		}
+	}
+
+	// iLO v2 does not support setting this over IPMI
+	if media.BootDevice != ipmi.BootDeviceNone {
+		cmds = append(cmds, sshCommand("vm", devices[media.BootDevice], "set", "boot_once"))
+	}
+
+	return runSSH(m.c, cmds...)
 }

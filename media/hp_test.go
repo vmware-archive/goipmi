@@ -6,6 +6,7 @@ import (
 	"github.com/vmware/goipmi"
 	"net"
 	"regexp"
+	"sort"
 	"sync"
 	"testing"
 
@@ -19,7 +20,7 @@ type hpSim struct {
 	c    *ipmi.Connection
 	cmds []string
 
-	calledSetBoot bool
+	calledSetBoot ipmi.BootDevice
 	calledControl bool
 }
 
@@ -35,9 +36,11 @@ func (s *hpSim) Run() error {
 			ManufacturerID: ipmi.OemHP,
 		}
 	})
-	s.SetHandler(ipmi.NetworkFunctionChassis, ipmi.CommandSetSystemBootOptions, func(*ipmi.Message) ipmi.Response {
-		s.calledSetBoot = true
-		return ipmi.ErrInvalidCommand
+	s.SetHandler(ipmi.NetworkFunctionChassis, ipmi.CommandSetSystemBootOptions, func(m *ipmi.Message) ipmi.Response {
+		if m.Data[0] == ipmi.BootParamBootFlags {
+			s.calledSetBoot = ipmi.BootDevice(m.Data[2])
+		}
+		return ipmi.CommandCompleted
 	})
 	s.SetHandler(ipmi.NetworkFunctionChassis, ipmi.CommandChassisControl, func(*ipmi.Message) ipmi.Response {
 		s.calledControl = true
@@ -68,18 +71,26 @@ func TestHP(t *testing.T) {
 	defer s.Stop()
 
 	calledHandler := false
-
-	err = Boot(s.c, "hp_test.go", func() error {
+	vm := &VirtualMedia{
+		CdromImage:  "hp.go",
+		FloppyImage: "hp_test.go",
+		BootDevice:  ipmi.BootDeviceRemoteFloppy,
+	}
+	err = Boot(s.c, vm, func() error {
 		calledHandler = true
 		return nil
 	})
 
 	assert.NoError(t, err)
-
-	matches, _ := regexp.MatchString("vm floppy insert http://127.0.0.1:[0-9]{4,5}/image.go", s.cmds[0])
+	assert.Equal(t, 3, len(s.cmds))
+	sort.Strings(s.cmds)
+	matches, _ := regexp.MatchString("vm cdrom insert http://127.0.0.1:[0-9]{4,5}/hp.go", s.cmds[0])
 	assert.True(t, matches, s.cmds[0])
-	assert.Equal(t, "vm floppy set boot_once", s.cmds[1])
-	assert.False(t, s.calledSetBoot)
+	matches, _ = regexp.MatchString("vm floppy insert http://127.0.0.1:[0-9]{4,5}/hp_test.go", s.cmds[1])
+	assert.True(t, matches, s.cmds[1])
+
+	assert.Equal(t, "vm floppy set boot_once", s.cmds[2])
+	assert.Equal(t, vm.BootDevice, s.calledSetBoot)
 	assert.True(t, s.calledControl)
 	assert.True(t, calledHandler)
 }

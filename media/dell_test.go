@@ -14,7 +14,7 @@ type dellSim struct {
 	*ipmi.Simulator
 	c *ipmi.Connection
 
-	calledSetBoot bool
+	calledSetBoot ipmi.BootDevice
 	calledControl bool
 }
 
@@ -30,8 +30,10 @@ func (s *dellSim) Run() error {
 			ManufacturerID: ipmi.OemDell,
 		}
 	})
-	s.SetHandler(ipmi.NetworkFunctionChassis, ipmi.CommandSetSystemBootOptions, func(*ipmi.Message) ipmi.Response {
-		s.calledSetBoot = true
+	s.SetHandler(ipmi.NetworkFunctionChassis, ipmi.CommandSetSystemBootOptions, func(m *ipmi.Message) ipmi.Response {
+		if m.Data[0] == ipmi.BootParamBootFlags {
+			s.calledSetBoot = ipmi.BootDevice(m.Data[2])
+		}
 		return ipmi.CommandCompleted
 	})
 	s.SetHandler(ipmi.NetworkFunctionChassis, ipmi.CommandChassisControl, func(*ipmi.Message) ipmi.Response {
@@ -55,15 +57,18 @@ func TestDell(t *testing.T) {
 	defer s.Stop()
 
 	calledHandler := false
-
-	err = Boot(s.c, "dell_test.go", func() error {
+	vm := &VirtualMedia{
+		CdromImage: "dell_test.go",
+		BootDevice: ipmi.BootDeviceRemoteCdrom,
+	}
+	err = Boot(s.c, vm, func() error {
 		calledHandler = true
 		return nil
 	})
 
 	assert.NoError(t, err)
 
-	assert.True(t, s.calledSetBoot)
+	assert.Equal(t, vm.BootDevice, s.calledSetBoot)
 	assert.True(t, s.calledControl)
 	assert.True(t, calledHandler)
 }

@@ -7,14 +7,20 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
 )
 
 // The Media interface defines methods for using remote virtual media
 type Media interface {
-	BootDevice(image string) ipmi.BootDevice
-	Mount(string) error
+	Mount(*VirtualMedia) error
 	UnMount() error
+}
+
+// VirtualMedia specifies paths for mounting cdrom and/or floppy/usb images.
+// BootDevice can be set to specify an image type to boot from on next boot.
+type VirtualMedia struct {
+	BootDevice  ipmi.BootDevice
+	CdromImage  string
+	FloppyImage string
 }
 
 // New creates a Media instance based on the ipmi device id.
@@ -34,7 +40,7 @@ func New(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
 // The image will be mounted via remote virtual media, bios flag set to boot once
 // for the appropriate media device and machine will be power cycled.
 // The given handler will be called after the power cycled.
-func Boot(conn *ipmi.Connection, image string, handler func() error) error {
+func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func() error) error {
 	c, err := ipmi.NewClient(conn)
 	if err != nil {
 		return err
@@ -54,18 +60,18 @@ func Boot(conn *ipmi.Connection, image string, handler func() error) error {
 		return err
 	}
 
-	if err := m.Mount(image); err != nil {
+	if err := m.Mount(vm); err != nil {
 		return err
 	}
 
 	defer func() {
 		if err := m.UnMount(); err != nil {
-			log.Printf("Error unmounting %s: %s", image, err)
+			log.Printf("Error unmounting: %s", err)
 		}
 	}()
 
-	if dev := m.BootDevice(image); dev != ipmi.BootDeviceNone {
-		if err := c.SetBootDevice(dev); err != nil {
+	if vm.BootDevice != ipmi.BootDeviceNone {
+		if err := c.SetBootDevice(vm.BootDevice); err != nil {
 			return err
 		}
 	}
@@ -80,17 +86,4 @@ func Boot(conn *ipmi.Connection, image string, handler func() error) error {
 // avoid common errcheck warning
 func ioclose(c io.Closer) {
 	_ = c.Close()
-}
-
-type bootDevice struct{}
-
-func (bootDevice) BootDevice(image string) ipmi.BootDevice {
-	if isISO(image) {
-		return ipmi.BootDeviceRemoteCdrom
-	}
-	return ipmi.BootDeviceRemoteFloppy
-}
-
-func isISO(image string) bool {
-	return filepath.Ext(image) == ".iso"
 }
