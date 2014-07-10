@@ -76,7 +76,7 @@ func TestHP(t *testing.T) {
 		FloppyImage: "hp_test.go",
 		BootDevice:  ipmi.BootDeviceRemoteFloppy,
 	}
-	err = Boot(s.c, vm, func() error {
+	err = Boot(s.c, vm, func(*ipmi.Client) error {
 		calledHandler = true
 		return nil
 	})

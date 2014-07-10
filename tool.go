@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -40,6 +41,14 @@ func (t *tool) send(req *Request, res Response) error {
 	return responseFromString(output, res)
 }
 
+func (t *tool) Console() error {
+	cmd := t.cmd("sol", "activate", "-e", "&")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func (t *tool) options() []string {
 	intf := t.Interface
 	if intf == "" {
@@ -60,7 +69,7 @@ func (t *tool) options() []string {
 	return options
 }
 
-func (t *tool) run(args ...string) (string, error) {
+func (t *tool) cmd(args ...string) *exec.Cmd {
 	path := t.Path
 	opts := append(t.options(), args...)
 
@@ -68,8 +77,12 @@ func (t *tool) run(args ...string) (string, error) {
 		path = "ipmitool"
 	}
 
-	cmd := exec.Command(path, opts...)
+	return exec.Command(path, opts...)
 
+}
+
+func (t *tool) run(args ...string) (string, error) {
+	cmd := t.cmd(args...)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -78,7 +91,7 @@ func (t *tool) run(args ...string) (string, error) {
 	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("run %s %s: %s (%s)",
-			path, strings.Join(opts, " "), stderr.String(), err)
+			cmd.Path, strings.Join(cmd.Args, " "), stderr.String(), err)
 	}
 
 	return stdout.String(), err

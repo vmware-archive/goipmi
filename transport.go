@@ -8,6 +8,8 @@ type transport interface {
 	open() error
 	close() error
 	send(*Request, Response) error
+	// Console enters Serial Over LAN mode
+	Console() error
 }
 
 func newTransport(c *Connection) (transport, error) {

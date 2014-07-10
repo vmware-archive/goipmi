@@ -6,8 +6,10 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"time"
 )
@@ -84,6 +86,13 @@ func (l *lan) send(req *Request, res Response) error {
 	}
 
 	return m.Response(res)
+}
+
+func (*lan) Console() error {
+	fmt.Println("Console not supported. Press Enter to continue.")
+	r := make([]byte, 1)
+	_, err := os.Stdin.Read(r)
+	return err
 }
 
 func (l *lan) sendPacket(buf []byte) error {

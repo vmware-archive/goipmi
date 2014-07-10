@@ -40,7 +40,7 @@ func New(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
 // The image will be mounted via remote virtual media, bios flag set to boot once
 // for the appropriate media device and machine will be power cycled.
 // The given handler will be called after the power cycled.
-func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func() error) error {
+func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func(*ipmi.Client) error) error {
 	c, err := ipmi.NewClient(conn)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func() error) error {
 		return err
 	}
 
-	return handler()
+	return handler(c)
 }
 
 // avoid common errcheck warning

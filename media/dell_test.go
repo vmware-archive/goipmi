@@ -61,7 +61,7 @@ func TestDell(t *testing.T) {
 		CdromImage: "dell_test.go",
 		BootDevice: ipmi.BootDeviceRemoteCdrom,
 	}
-	err = Boot(s.c, vm, func() error {
+	err = Boot(s.c, vm, func(*ipmi.Client) error {
 		calledHandler = true
 		return nil
 	})
