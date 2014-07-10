@@ -16,6 +16,7 @@ type server struct {
 	addr     net.TCPAddr
 	listener net.Listener
 	url      map[ipmi.BootDevice]string
+	files    map[string]string
 	c        *ipmi.Connection
 }
 
@@ -37,6 +38,14 @@ func (s *server) hostIP() (string, error) {
 	return host, err
 }
 
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if file, ok := s.files[r.URL.Path]; ok {
+		http.ServeFile(w, r, file)
+	} else {
+		http.NotFound(w, r)
+	}
+}
+
 func (s *server) Mount(media *VirtualMedia) error {
 	listener, err := net.ListenTCP("tcp4", &s.addr)
 	if err != nil {
@@ -50,8 +59,8 @@ func (s *server) Mount(media *VirtualMedia) error {
 	}
 
 	s.listener = listener
-	mux := http.NewServeMux()
 	s.url = make(map[ipmi.BootDevice]string)
+	s.files = make(map[string]string)
 
 	handlers := map[ipmi.BootDevice]string{
 		ipmi.BootDeviceRemoteCdrom:  media.CdromImage,
@@ -62,18 +71,15 @@ func (s *server) Mount(media *VirtualMedia) error {
 		if file == "" {
 			continue
 		}
-		path := fmt.Sprintf("/%s", filepath.Base(file))
+		path := fmt.Sprintf("/%s%s", dev, filepath.Ext(file))
 		s.url[dev] = fmt.Sprintf("http://%s:%d%s", host, port, path)
-
-		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, file)
-		})
+		s.files[path] = file
 	}
 
 	s.wg.Add(1)
 
 	go func() {
-		_ = (&http.Server{Handler: mux}).Serve(s.listener)
+		_ = (&http.Server{Handler: s}).Serve(s.listener)
 		s.wg.Done()
 	}()
 

@@ -84,9 +84,9 @@ func TestHP(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(s.cmds))
 	sort.Strings(s.cmds)
-	matches, _ := regexp.MatchString("vm cdrom insert http://127.0.0.1:[0-9]{4,5}/hp.go", s.cmds[0])
+	matches, _ := regexp.MatchString("vm cdrom insert http://127.0.0.1:[0-9]{4,5}/rcdrom.go", s.cmds[0])
 	assert.True(t, matches, s.cmds[0])
-	matches, _ = regexp.MatchString("vm floppy insert http://127.0.0.1:[0-9]{4,5}/hp_test.go", s.cmds[1])
+	matches, _ = regexp.MatchString("vm floppy insert http://127.0.0.1:[0-9]{4,5}/rfloppy.go", s.cmds[1])
 	assert.True(t, matches, s.cmds[1])
 
 	assert.Equal(t, "vm floppy set boot_once", s.cmds[2])

@@ -6,6 +6,7 @@ import (
 	"github.com/vmware/goipmi"
 	"net/http"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,22 +15,37 @@ import (
 func TestServer(t *testing.T) {
 	s := &server{}
 	vm := &VirtualMedia{
-		CdromImage: "server_test.go",
-		BootDevice: ipmi.BootDeviceRemoteCdrom,
+		FloppyImage: "server.go",
+		CdromImage:  "server_test.go",
+		BootDevice:  ipmi.BootDeviceRemoteCdrom,
 	}
 	err := s.Mount(vm)
 	assert.NoError(t, err)
 
-	surl := s.url[ipmi.BootDeviceRemoteCdrom]
-	r, err := http.Get(surl)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusOK, r.StatusCode)
+	tests := map[ipmi.BootDevice]string{
+		ipmi.BootDeviceRemoteCdrom:  vm.CdromImage,
+		ipmi.BootDeviceRemoteFloppy: vm.FloppyImage,
+	}
 
-	u, _ := url.Parse(surl)
-	u.Path = "/server.go"
-	r, err = http.Get(u.String())
+	for dev, file := range tests {
+		st, _ := os.Stat(file)
+		surl := s.url[dev]
+		r, err := http.Get(surl)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, r.StatusCode)
+		assert.Equal(t, r.ContentLength, st.Size())
+	}
+
+	u, _ := url.Parse(s.url[ipmi.BootDeviceRemoteCdrom])
+	u.Path = "/dell.go"
+	r, err := http.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusNotFound, r.StatusCode, "file exists but should 404")
+
+	u.Path = "/enoent.go"
+	r, err = http.Get(u.String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, r.StatusCode)
 
 	err = s.UnMount()
 	assert.NoError(t, err)
