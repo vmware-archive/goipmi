@@ -31,6 +31,8 @@ func New(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
 		return newDellMedia(c, id)
 	case ipmi.OemHP:
 		return newHPMedia(c, id)
+	case ipmi.OemSupermicro:
+		return newSupermicroMedia(c, id)
 	default:
 		return nil, fmt.Errorf("OEM not supported: %s", id.ManufacturerID)
 	}
