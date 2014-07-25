@@ -13,7 +13,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	s := &server{}
+	s := newServer(&ipmi.Connection{Hostname: "localhost"})
 	vm := &VirtualMedia{
 		FloppyImage: "server.go",
 		CdromImage:  "server_test.go",

@@ -4,7 +4,6 @@ package media
 
 import (
 	"github.com/vmware/goipmi"
-	"net"
 	"os/exec"
 )
 
@@ -22,7 +21,7 @@ func newDellMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) 
 // Note that Dell vmcli only supports 1 active session, but supports mounting both
 // a floppy/usb and cdrom within the single session.
 func (m *dell) Mount(media *VirtualMedia) error {
-	args := []string{"-r", ipmiAddress(m.c), "-u", m.c.Username, "-p", m.c.Password}
+	args := []string{"-r", m.c.RemoteIP(), "-u", m.c.Username, "-p", m.c.Password}
 
 	devices := map[string]string{
 		"-c": media.CdromImage,
@@ -42,15 +41,4 @@ func (m *dell) Mount(media *VirtualMedia) error {
 
 func (m *dell) cli() string {
 	return defaultDellVmcli // TODO: racvmcli for v5
-}
-
-// the Dell vmcli tools do not resolve hostnames, so make sure we give it an IP address
-func ipmiAddress(c *ipmi.Connection) string {
-	if net.ParseIP(c.Hostname) == nil {
-		addrs, err := net.LookupHost(c.Hostname)
-		if err != nil && len(addrs) > 0 {
-			return addrs[0]
-		}
-	}
-	return c.Hostname
 }

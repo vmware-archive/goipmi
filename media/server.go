@@ -24,20 +24,6 @@ func newServer(c *ipmi.Connection) *server {
 	return &server{c: c}
 }
 
-func (s *server) hostIP() (string, error) {
-	if s.c == nil {
-		return "localhost", nil
-	}
-
-	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", s.c.Hostname, s.c.Port))
-	if err != nil {
-		return "", err
-	}
-	defer ioclose(conn)
-	host, _, err := net.SplitHostPort(conn.LocalAddr().String())
-	return host, err
-}
-
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if file, ok := s.files[r.URL.Path]; ok {
 		http.ServeFile(w, r, file)
@@ -52,11 +38,8 @@ func (s *server) Mount(media *VirtualMedia) error {
 		return err
 	}
 
+	host := s.c.LocalIP()
 	port := listener.Addr().(*net.TCPAddr).Port
-	host, err := s.hostIP()
-	if err != nil {
-		return err
-	}
 
 	s.listener = listener
 	s.url = make(map[ipmi.BootDevice]string)

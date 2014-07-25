@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -32,15 +31,17 @@ var (
 type supermicro struct {
 	c *http.Client
 	u *url.URL
+	h string
 }
 
 func newSupermicroMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
 	clnt := &supermicro{
 		c: &http.Client{},
 		u: &url.URL{
-			Host:   ipmiAddress(c),
+			Host:   c.Hostname,
 			Scheme: "http",
 		},
+		h: c.LocalIP(),
 	}
 
 	v := url.Values{
@@ -76,21 +77,8 @@ func newSupermicroMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, e
 
 // Mount mounts the floppy and CD virtual devices
 func (s *supermicro) Mount(media *VirtualMedia) error {
-
-	// TODO(FA) The host and username/pwd should be configurable.  Use the
-	// address of the first interface for now and hardcode the Guest creds.
-	interfaces, _ := net.Interfaces()
-	ips, err := interfaces[1].Addrs()
-	if err != nil {
-		return err
-	}
-	ip, _, err := net.ParseCIDR(ips[0].String())
-	if err != nil {
-		return err
-	}
-
 	if media.CdromImage != "" {
-		if err := s.mountCD(ip.String(), media.CdromImage, "Guest", "Guest"); err != nil {
+		if err := s.mountCD(s.h, media.CdromImage, "Guest", "Guest"); err != nil {
 			return err
 		}
 	}
