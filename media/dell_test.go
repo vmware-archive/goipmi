@@ -57,9 +57,11 @@ func TestDell(t *testing.T) {
 	defer s.Stop()
 
 	calledHandler := false
-	vm := &VirtualMedia{
-		CdromImage: "dell_test.go",
-		BootDevice: ipmi.BootDeviceRemoteCdrom,
+	vm := VirtualMedia{
+		ISO: &VirtualDevice{
+			Path: "dell_test.go",
+			Boot: true,
+		},
 	}
 	err = Boot(s.c, vm, func(*ipmi.Client) error {
 		calledHandler = true
@@ -68,7 +70,7 @@ func TestDell(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	assert.Equal(t, vm.BootDevice, s.calledSetBoot)
+	assert.Equal(t, ipmi.BootDeviceRemoteCdrom, s.calledSetBoot)
 	assert.True(t, s.calledControl)
 	assert.True(t, calledHandler)
 }

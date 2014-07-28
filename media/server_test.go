@@ -3,7 +3,6 @@
 package media
 
 import (
-	"github.com/vmware/goipmi"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,30 +12,26 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	s := newServer(&ipmi.Connection{Hostname: "localhost"})
-	vm := &VirtualMedia{
-		FloppyImage: "server.go",
-		CdromImage:  "server_test.go",
-		BootDevice:  ipmi.BootDeviceRemoteCdrom,
+	vm := VirtualMedia{
+		IMG: &VirtualDevice{
+			Path: "server.go",
+		},
+		ISO: &VirtualDevice{
+			Path: "server_test.go",
+		},
 	}
-	err := s.Mount(vm)
+	err := vm.ListenAndServe("localhost")
 	assert.NoError(t, err)
 
-	tests := map[ipmi.BootDevice]string{
-		ipmi.BootDeviceRemoteCdrom:  vm.CdromImage,
-		ipmi.BootDeviceRemoteFloppy: vm.FloppyImage,
-	}
-
-	for dev, file := range tests {
-		st, _ := os.Stat(file)
-		surl := s.url[dev]
-		r, err := http.Get(surl)
+	for _, device := range vm {
+		st, _ := os.Stat(device.Path)
+		r, err := http.Get(device.URL.String())
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, r.StatusCode)
-		assert.Equal(t, r.ContentLength, st.Size())
+		assert.Equal(t, r.ContentLength, st.Size(), device.URL.String())
 	}
 
-	u, _ := url.Parse(s.url[ipmi.BootDeviceRemoteCdrom])
+	u, _ := url.Parse(vm[ISO].URL.String())
 	u.Path = "/dell.go"
 	r, err := http.Get(u.String())
 	assert.NoError(t, err)
@@ -46,7 +41,4 @@ func TestServer(t *testing.T) {
 	r, err = http.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusNotFound, r.StatusCode)
-
-	err = s.UnMount()
-	assert.NoError(t, err)
 }

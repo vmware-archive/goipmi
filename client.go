@@ -4,6 +4,7 @@ package ipmi
 
 // Client provides common high level functionality around the underlying transport
 type Client struct {
+	*Connection
 	transport
 }
 
@@ -14,7 +15,8 @@ func NewClient(c *Connection) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		transport: t,
+		Connection: c,
+		transport:  t,
 	}, nil
 }
 

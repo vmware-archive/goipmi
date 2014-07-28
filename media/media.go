@@ -7,32 +7,43 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
+)
+
+// VirtualMedia types
+const (
+	ISO = "iso" // CD-ROM/DVD-ROM
+	IMG = "img" // Floppy/USB
 )
 
 // The Media interface defines methods for using remote virtual media
 type Media interface {
-	Mount(*VirtualMedia) error
+	Mount(VirtualMedia) error
 	UnMount() error
+}
+
+// VirtualDevice contains the local Path to media, Boot (once) flag and
+// optional URL where the file can be accessed by the BMC
+type VirtualDevice struct {
+	Path string
+	Boot bool
+	URL  *url.URL
 }
 
 // VirtualMedia specifies paths for mounting cdrom and/or floppy/usb images.
 // BootDevice can be set to specify an image type to boot from on next boot.
-type VirtualMedia struct {
-	BootDevice  ipmi.BootDevice
-	CdromImage  string
-	FloppyImage string
-}
+type VirtualMedia map[string]*VirtualDevice
 
 // New creates a Media instance based on the ipmi device id.
 // A error is returned if the device is not supported.
-func New(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
+func New(c *ipmi.Client, id *ipmi.DeviceIDResponse) (Media, error) {
 	switch id.ManufacturerID {
 	case ipmi.OemDell:
-		return newDellMedia(c, id)
+		return newDellMedia(c)
 	case ipmi.OemHP:
-		return newHPMedia(c, id)
+		return newHPMedia(c)
 	case ipmi.OemSupermicro:
-		return newSupermicroMedia(c, id)
+		return newSupermicroMedia(c)
 	default:
 		return nil, fmt.Errorf("OEM not supported: %s", id.ManufacturerID)
 	}
@@ -42,7 +53,7 @@ func New(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
 // The image will be mounted via remote virtual media, bios flag set to boot once
 // for the appropriate media device and machine will be power cycled.
 // The given handler will be called after the power cycled.
-func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func(*ipmi.Client) error) error {
+func Boot(conn *ipmi.Connection, vm VirtualMedia, handler func(*ipmi.Client) error) error {
 	c, err := ipmi.NewClient(conn)
 	if err != nil {
 		return err
@@ -57,7 +68,7 @@ func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func(*ipmi.Client) er
 		return err
 	}
 
-	m, err := New(conn, id)
+	m, err := New(c, id)
 	if err != nil {
 		return err
 	}
@@ -71,12 +82,6 @@ func Boot(conn *ipmi.Connection, vm *VirtualMedia, handler func(*ipmi.Client) er
 			log.Printf("Error unmounting: %s", err)
 		}
 	}()
-
-	if vm.BootDevice != ipmi.BootDeviceNone {
-		if err := c.SetBootDevice(vm.BootDevice); err != nil {
-			return err
-		}
-	}
 
 	if err := c.Control(ipmi.ControlPowerCycle); err != nil {
 		return err

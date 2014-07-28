@@ -29,19 +29,19 @@ var (
 )
 
 type supermicro struct {
-	c *http.Client
-	u *url.URL
-	h string
+	c  *http.Client
+	u  *url.URL
+	ic *ipmi.Client
 }
 
-func newSupermicroMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
+func newSupermicroMedia(c *ipmi.Client) (Media, error) {
 	clnt := &supermicro{
 		c: &http.Client{},
 		u: &url.URL{
 			Host:   c.Hostname,
 			Scheme: "http",
 		},
-		h: c.LocalIP(),
+		ic: c,
 	}
 
 	v := url.Values{
@@ -76,15 +76,21 @@ func newSupermicroMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, e
 }
 
 // Mount mounts the floppy and CD virtual devices
-func (s *supermicro) Mount(media *VirtualMedia) error {
-	if media.CdromImage != "" {
-		if err := s.mountCD(s.h, media.CdromImage, "Guest", "Guest"); err != nil {
+func (s *supermicro) Mount(media VirtualMedia) error {
+	if device, ok := media[ISO]; ok {
+		if err := s.mountCD(s.ic.LocalIP(), device.Path, "Guest", "Guest"); err != nil {
+			return err
+		}
+		if err := s.ic.SetBootDevice(ipmi.BootDeviceCdrom); err != nil {
 			return err
 		}
 	}
 
-	if media.FloppyImage != "" {
-		if err := s.mountFloppy(media.FloppyImage); err != nil {
+	if device, ok := media[IMG]; ok {
+		if err := s.mountFloppy(device.Path); err != nil {
+			return err
+		}
+		if err := s.ic.SetBootDevice(ipmi.BootDeviceFloppy); err != nil {
 			return err
 		}
 	}

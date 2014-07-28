@@ -5,43 +5,37 @@ package media
 import "github.com/vmware/goipmi"
 
 type hp struct {
-	*server
 	c *ipmi.Connection
 }
 
-func newHPMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
+func newHPMedia(c *ipmi.Client) (Media, error) {
 	return &hp{
-		server: newServer(c),
-		c:      c,
+		c: c.Connection,
 	}, nil
 }
 
-func (*hp) BootDevice(image string) ipmi.BootDevice {
-	return ipmi.BootDeviceNone
-}
-
-func (m *hp) Mount(media *VirtualMedia) error {
+func (m *hp) Mount(media VirtualMedia) error {
 	cmds := []string{}
-	err := m.server.Mount(media)
+	err := media.ListenAndServe(m.c.LocalIP())
 	if err != nil {
 		return err
 	}
 
-	devices := map[ipmi.BootDevice]string{
-		ipmi.BootDeviceRemoteCdrom:  "cdrom",
-		ipmi.BootDeviceRemoteFloppy: "floppy",
+	devices := map[string]string{
+		ISO: "cdrom",
+		IMG: "floppy",
 	}
 
-	for dev, name := range devices {
-		if url, ok := m.url[dev]; ok {
-			cmds = append(cmds, sshCommand("vm", name, "insert", url))
+	for id, device := range media {
+		cmds = append(cmds, sshCommand("vm", devices[id], "insert", device.URL.String()))
+		if device.Boot {
+			cmds = append(cmds, sshCommand("vm", devices[id], "set", "boot_once"))
 		}
 	}
 
-	// iLO v2 does not support setting this over IPMI
-	if media.BootDevice != ipmi.BootDeviceNone {
-		cmds = append(cmds, sshCommand("vm", devices[media.BootDevice], "set", "boot_once"))
-	}
-
 	return runSSH(m.c, cmds...)
+}
+
+func (m *hp) UnMount() error {
+	return nil
 }

@@ -20,9 +20,10 @@ func TestMedia(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c := &ipmi.Connection{}
+		c, err := ipmi.NewClient(&ipmi.Connection{Interface: "lan"})
+		assert.NoError(t, err)
 		id := &ipmi.DeviceIDResponse{ManufacturerID: test.id}
-		_, err := New(c, id)
+		_, err = New(c, id)
 		if test.ok {
 			assert.NoError(t, err)
 		} else {

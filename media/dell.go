@@ -10,27 +10,33 @@ import (
 var defaultDellVmcli = "vmcli"
 
 type dell struct {
-	c   *ipmi.Connection
+	c   *ipmi.Client
 	cmd *exec.Cmd
 }
 
-func newDellMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
+func newDellMedia(c *ipmi.Client) (Media, error) {
 	return &dell{c: c}, nil
 }
 
 // Note that Dell vmcli only supports 1 active session, but supports mounting both
 // a floppy/usb and cdrom within the single session.
-func (m *dell) Mount(media *VirtualMedia) error {
+func (m *dell) Mount(media VirtualMedia) error {
 	args := []string{"-r", m.c.RemoteIP(), "-u", m.c.Username, "-p", m.c.Password}
 
-	devices := map[string]string{
-		"-c": media.CdromImage,
-		"-f": media.FloppyImage,
+	devices := map[string]struct {
+		boot ipmi.BootDevice
+		flag string
+	}{
+		ISO: {ipmi.BootDeviceRemoteCdrom, "-c"},
+		IMG: {ipmi.BootDeviceRemoteFloppy, "-f"},
 	}
 
-	for flag, file := range devices {
-		if file != "" {
-			args = append(args, flag, file)
+	for id, device := range media {
+		args = append(args, devices[id].flag, device.Path)
+		if device.Boot {
+			if err := m.c.SetBootDevice(devices[id].boot); err != nil {
+				return err
+			}
 		}
 	}
 
