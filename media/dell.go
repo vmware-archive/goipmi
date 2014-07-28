@@ -10,8 +10,8 @@ import (
 var defaultDellVmcli = "vmcli"
 
 type dell struct {
-	process
-	c *ipmi.Connection
+	c   *ipmi.Connection
+	cmd *exec.Cmd
 }
 
 func newDellMedia(c *ipmi.Connection, id *ipmi.DeviceIDResponse) (Media, error) {
@@ -34,9 +34,13 @@ func (m *dell) Mount(media *VirtualMedia) error {
 		}
 	}
 
-	m.Cmd = exec.Command(m.cli(), args...)
+	m.cmd = exec.Command(m.cli(), args...)
 
-	return m.start()
+	return m.cmd.Start()
+}
+
+func (m *dell) UnMount() error {
+	return m.cmd.Process.Kill()
 }
 
 func (m *dell) cli() string {
