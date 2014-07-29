@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,4 +42,29 @@ func TestServer(t *testing.T) {
 	r, err = http.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusNotFound, r.StatusCode)
+}
+
+func TestSambaURL(t *testing.T) {
+	os.Setenv("IPMI_MEDIA_SHARE_PATH", "/usr/share")
+	p := "/images/foo.iso"
+	u := url.User("guest")
+	x, err := url.Parse("smb://user:pass@xhost/isos/x.iso")
+	assert.NoError(t, err)
+
+	tests := []struct {
+		device VirtualDevice
+		host   string
+		expect url.URL
+	}{
+		{VirtualDevice{Path: p}, "h", url.URL{Host: "h", Path: p, User: u}},
+		{VirtualDevice{Path: "/usr/share" + p}, "", url.URL{Path: p, User: u}},
+		{VirtualDevice{URL: x}, "", *x},
+		{VirtualDevice{URL: x}, "h", *x},
+	}
+
+	for _, test := range tests {
+		tu := test.device.SambaURL(test.host)
+		assert.Equal(t, test.expect.String(), tu.URL.String())
+		assert.Equal(t, strings.Replace(tu.URL.Path, "/", "\\", -1), tu.SharePath)
+	}
 }

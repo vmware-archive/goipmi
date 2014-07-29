@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ListenAndServe starts and HTTP server that can serve VirtualMedia files.
@@ -40,4 +42,40 @@ func (m VirtualMedia) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.NotFound(w, r)
+}
+
+// SambaURL extends url.URL, adding a SharePath in UNC form
+type SambaURL struct {
+	url.URL
+	SharePath string
+}
+
+// SambaURL returns a URL for which the device media can be accessed
+// over samba by the remote BMC.
+func (d *VirtualDevice) SambaURL(host string) *SambaURL {
+	var u url.URL
+
+	if d.URL == nil {
+		path := d.Path
+		share := os.Getenv("IPMI_MEDIA_SHARE_PATH")
+		// make path relative to share path if set
+		if share != "" {
+			if strings.HasPrefix(path, share) {
+				path = path[len(share):]
+			}
+		}
+
+		u = url.URL{
+			Host: host,
+			Path: path,
+			User: url.User("guest"),
+		}
+	} else {
+		u = *d.URL
+	}
+
+	return &SambaURL{
+		URL:       u,
+		SharePath: strings.Replace(u.Path, "/", "\\", -1),
+	}
 }
