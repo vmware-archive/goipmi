@@ -1,6 +1,6 @@
 // Copyright (c) 2014 VMware, Inc. All Rights Reserved.
 
-package media
+package test
 
 import (
 	"github.com/vmware/goipmi"
@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMultiSession(t *testing.T) {
+func TestDialSSH(t *testing.T) {
 	var lastCmd string
 	var status int
 
@@ -20,12 +20,12 @@ func TestMultiSession(t *testing.T) {
 		Hostname: "127.0.0.1",
 	}
 
-	wg := sshTestExecServer(c, func(ch ssh.Channel, cmd string) int {
+	wg := StartSSHExecServer(c, func(ch ssh.Channel, cmd string) int {
 		lastCmd = cmd
 		return status
 	})
 
-	client, err := dialSSH(c)
+	client, err := c.DialSSH()
 	assert.NoError(t, err)
 
 	tests := []struct {
@@ -86,12 +86,12 @@ func TestRunSSH(t *testing.T) {
 
 			c.Hostname = "127.0.0.1"
 
-			wg := sshTestExecServer(c, func(ch ssh.Channel, cmd string) int {
+			wg := StartSSHExecServer(c, func(ch ssh.Channel, cmd string) int {
 				cmds = append(cmds, cmd)
 				return status
 			})
 
-			err := runSSH(c, test.cmd)
+			err := c.RunSSH(test.cmd)
 			if test.status == 0 {
 				assert.NoError(t, err)
 			} else {

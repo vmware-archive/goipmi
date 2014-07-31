@@ -5,7 +5,6 @@ package media
 import (
 	"github.com/vmware/goipmi"
 	"fmt"
-	"io"
 	"log"
 	"net/url"
 )
@@ -61,7 +60,7 @@ func Boot(conn *ipmi.Connection, vm VirtualMedia, handler func(*ipmi.Client) err
 	if err := c.Open(); err != nil {
 		return err
 	}
-	defer ioclose(c)
+	defer c.Close()
 
 	id, err := c.DeviceID()
 	if err != nil {
@@ -88,9 +87,4 @@ func Boot(conn *ipmi.Connection, vm VirtualMedia, handler func(*ipmi.Client) err
 	}
 
 	return handler(c)
-}
-
-// avoid common errcheck warning
-func ioclose(c io.Closer) {
-	_ = c.Close()
 }

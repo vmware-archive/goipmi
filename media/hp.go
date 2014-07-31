@@ -2,7 +2,10 @@
 
 package media
 
-import "github.com/vmware/goipmi"
+import (
+	"github.com/vmware/goipmi"
+	"fmt"
+)
 
 type hp struct {
 	c *ipmi.Connection
@@ -27,13 +30,13 @@ func (m *hp) Mount(media VirtualMedia) error {
 	}
 
 	for id, device := range media {
-		cmds = append(cmds, sshCommand("vm", devices[id], "insert", device.URL.String()))
+		cmds = append(cmds, fmt.Sprintf("vm %s insert %s", devices[id], device.URL))
 		if device.Boot {
-			cmds = append(cmds, sshCommand("vm", devices[id], "set", "boot_once"))
+			cmds = append(cmds, fmt.Sprintf("vm %s set boot_once", devices[id]))
 		}
 	}
 
-	return runSSH(m.c, cmds...)
+	return m.c.RunSSH(cmds...)
 }
 
 func (m *hp) UnMount() error {

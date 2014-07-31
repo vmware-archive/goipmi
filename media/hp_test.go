@@ -4,6 +4,7 @@ package media
 
 import (
 	"github.com/vmware/goipmi"
+	"github.com/vmware/goipmi/test"
 	"net"
 	"regexp"
 	"sort"
@@ -43,7 +44,7 @@ func (s *hpSim) Run() error {
 
 	s.c = s.NewConnection()
 
-	s.wg = sshTestExecServer(s.c, func(ch ssh.Channel, cmd string) int {
+	s.wg = test.StartSSHExecServer(s.c, func(ch ssh.Channel, cmd string) int {
 		s.cmds = append(s.cmds, cmd)
 		return 0
 	})
