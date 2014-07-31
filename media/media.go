@@ -9,50 +9,53 @@ import (
 	"net/url"
 )
 
-// VirtualMedia types
 const (
-	ISO = "iso" // CD-ROM/DVD-ROM
-	IMG = "img" // Floppy/USB
+	// ISO to be inserted into the virtual CD-ROM/DVD-ROM device
+	ISO = "iso"
+	// IMG to be inserted into the virtual Floppy/USB device
+	IMG = "img"
 )
 
-// The Media interface defines methods for using remote virtual media
-type Media interface {
-	Mount(VirtualMedia) error
-	UnMount() error
+var drivers = make(map[ipmi.OemID]func(c *ipmi.Client) (Driver, error))
+
+// The Driver interface defines methods for managing virtual media
+type Driver interface {
+	Insert(DeviceMap) error
+	Eject() error
 }
 
-// VirtualDevice contains the local Path to media, Boot (once) flag and
+// Device contains the local Path to media, Boot (once) flag and
 // optional URL where the file can be accessed by the BMC
-type VirtualDevice struct {
+type Device struct {
 	Path string
 	Boot bool
 	URL  *url.URL
 }
 
-// VirtualMedia specifies paths for mounting cdrom and/or floppy/usb images.
-// BootDevice can be set to specify an image type to boot from on next boot.
-type VirtualMedia map[string]*VirtualDevice
+// DeviceMap specifies paths for inserting iso and/or img files into virtual media devices.
+// Boot flag can be set to specify an image type to boot from on next boot.
+type DeviceMap map[string]*Device
 
-// New creates a Media instance based on the ipmi device id.
-// A error is returned if the device is not supported.
-func New(c *ipmi.Client, id *ipmi.DeviceIDResponse) (Media, error) {
-	switch id.ManufacturerID {
-	case ipmi.OemDell:
-		return newDellMedia(c)
-	case ipmi.OemHP:
-		return newHPMedia(c)
-	case ipmi.OemSupermicro:
-		return newSupermicroMedia(c)
-	default:
-		return nil, fmt.Errorf("OEM not supported: %s", id.ManufacturerID)
-	}
+// Register driver constructor for the given OemID
+func Register(id ipmi.OemID, driver func(c *ipmi.Client) (Driver, error)) {
+	drivers[id] = driver
 }
 
-// Boot a machine with the given image.
-// The image will be mounted via remote virtual media, bios flag set to boot once
-// for the appropriate media device and machine will be power cycled.
+// New creates a Driver instance based on the ipmi device id.
+// A error is returned if the device is not supported.
+func New(c *ipmi.Client, id ipmi.OemID) (Driver, error) {
+	if driver, ok := drivers[id]; ok {
+		return driver(c)
+	}
+	return nil, fmt.Errorf("OEM not supported: %s", id)
+}
+
+// Boot a machine with the given virtual media inserted.
+// The images will be inserted via remote virtual media,
+// bios flag set to boot once for the appropriate media device
+// and machine will be power cycled.
 // The given handler will be called after the power cycled.
-func Boot(conn *ipmi.Connection, vm VirtualMedia, handler func(*ipmi.Client) error) error {
+func Boot(conn *ipmi.Connection, m DeviceMap, handler func(*ipmi.Client) error) error {
 	c, err := ipmi.NewClient(conn)
 	if err != nil {
 		return err
@@ -67,18 +70,18 @@ func Boot(conn *ipmi.Connection, vm VirtualMedia, handler func(*ipmi.Client) err
 		return err
 	}
 
-	m, err := New(c, id)
+	d, err := New(c, id.ManufacturerID)
 	if err != nil {
 		return err
 	}
 
-	if err := m.Mount(vm); err != nil {
+	if err := d.Insert(m); err != nil {
 		return err
 	}
 
 	defer func() {
-		if err := m.UnMount(); err != nil {
-			log.Printf("Error unmounting: %s", err)
+		if err := d.Eject(); err != nil {
+			log.Printf("Error ejecting: %s", err)
 		}
 	}()
 

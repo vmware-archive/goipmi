@@ -9,21 +9,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type driver struct{}
+
+func (*driver) Insert(DeviceMap) error {
+	return nil
+}
+
+func (*driver) Eject() error {
+	return nil
+}
+
 func TestMedia(t *testing.T) {
+	Register(ipmi.OemBull, func(*ipmi.Client) (Driver, error) {
+		return &driver{}, nil
+	})
+
 	tests := []struct {
 		id ipmi.OemID
 		ok bool
 	}{
-		{ipmi.OemHP, true},
-		{ipmi.OemDell, true},
+		{ipmi.OemBull, true},
 		{ipmi.OemBroadcom, false},
 	}
 
 	for _, test := range tests {
 		c, err := ipmi.NewClient(&ipmi.Connection{Interface: "lan"})
 		assert.NoError(t, err)
-		id := &ipmi.DeviceIDResponse{ManufacturerID: test.id}
-		_, err = New(c, id)
+		_, err = New(c, test.id)
 		if test.ok {
 			assert.NoError(t, err)
 		} else {

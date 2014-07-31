@@ -1,16 +1,17 @@
 // Copyright (c) 2014 VMware, Inc. All Rights Reserved.
 
-package media
+package dell
 
 import (
 	"github.com/vmware/goipmi"
+	"github.com/vmware/goipmi/media"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type dellSim struct {
+type sim struct {
 	*ipmi.Simulator
 	c *ipmi.Connection
 
@@ -18,7 +19,7 @@ type dellSim struct {
 	calledControl bool
 }
 
-func (s *dellSim) Run() error {
+func (s *sim) Run() error {
 	s.Simulator = ipmi.NewSimulator(net.UDPAddr{})
 	if err := s.Simulator.Run(); err != nil {
 		return err
@@ -49,7 +50,7 @@ func (s *dellSim) Run() error {
 func TestDell(t *testing.T) {
 	defaultDellVmcli = "echo"
 
-	s := &dellSim{}
+	s := &sim{}
 	err := s.Run()
 	if err != nil {
 		t.Fatal(err)
@@ -57,13 +58,13 @@ func TestDell(t *testing.T) {
 	defer s.Stop()
 
 	calledHandler := false
-	vm := VirtualMedia{
-		ISO: &VirtualDevice{
-			Path: "dell_test.go",
+	vm := media.DeviceMap{
+		media.ISO: &media.Device{
+			Path: "driver_test.go",
 			Boot: true,
 		},
 	}
-	err = Boot(s.c, vm, func(*ipmi.Client) error {
+	err = media.Boot(s.c, vm, func(*ipmi.Client) error {
 		calledHandler = true
 		return nil
 	})

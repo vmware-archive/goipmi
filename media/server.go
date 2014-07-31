@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-// ListenAndServe starts and HTTP server that can serve VirtualMedia files.
-func (m VirtualMedia) ListenAndServe(host string) error {
+// ListenAndServe starts and HTTP server that can serve virtual media files.
+func (m DeviceMap) ListenAndServe(host string) error {
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{})
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (m VirtualMedia) ListenAndServe(host string) error {
 	return nil
 }
 
-func (m VirtualMedia) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (m DeviceMap) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, device := range m {
 		if device.URL.Path == r.URL.Path {
 			http.ServeFile(w, r, device.Path)
@@ -52,7 +52,7 @@ type SambaURL struct {
 
 // SambaURL returns a URL for which the device media can be accessed
 // over samba by the remote BMC.
-func (d *VirtualDevice) SambaURL(host string) *SambaURL {
+func (d *Device) SambaURL(host string) *SambaURL {
 	var u url.URL
 
 	if d.URL == nil {

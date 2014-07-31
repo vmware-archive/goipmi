@@ -13,11 +13,11 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	vm := VirtualMedia{
-		IMG: &VirtualDevice{
+	vm := DeviceMap{
+		IMG: &Device{
 			Path: "server.go",
 		},
-		ISO: &VirtualDevice{
+		ISO: &Device{
 			Path: "server_test.go",
 		},
 	}
@@ -33,7 +33,7 @@ func TestServer(t *testing.T) {
 	}
 
 	u, _ := url.Parse(vm[ISO].URL.String())
-	u.Path = "/dell.go"
+	u.Path = "/media.go"
 	r, err := http.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusNotFound, r.StatusCode, "file exists but should 404")
@@ -52,14 +52,14 @@ func TestSambaURL(t *testing.T) {
 	assert.NoError(t, err)
 
 	tests := []struct {
-		device VirtualDevice
+		device Device
 		host   string
 		expect url.URL
 	}{
-		{VirtualDevice{Path: p}, "h", url.URL{Host: "h", Path: p, User: u}},
-		{VirtualDevice{Path: "/usr/share" + p}, "", url.URL{Path: p, User: u}},
-		{VirtualDevice{URL: x}, "", *x},
-		{VirtualDevice{URL: x}, "h", *x},
+		{Device{Path: p}, "h", url.URL{Host: "h", Path: p, User: u}},
+		{Device{Path: "/usr/share" + p}, "", url.URL{Path: p, User: u}},
+		{Device{URL: x}, "", *x},
+		{Device{URL: x}, "h", *x},
 	}
 
 	for _, test := range tests {

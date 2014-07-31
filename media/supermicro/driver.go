@@ -1,10 +1,11 @@
 // Copyright (c) 2014 VMware, Inc. All Rights Reserved.
 
-package media
+package supermicro
 
 import (
 	"bytes"
 	"github.com/vmware/goipmi"
+	"github.com/vmware/goipmi/media"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -30,34 +31,39 @@ var (
 	smcPort   = "80"
 )
 
-type supermicro struct {
+type driver struct {
 	http.Client
 	c *ipmi.Client
 }
 
-func newSupermicroMedia(c *ipmi.Client) (Media, error) {
-	return &supermicro{c: c}, nil
+func init() {
+	media.Register(ipmi.OemSupermicro, New)
 }
 
-func (s *supermicro) Mount(media VirtualMedia) error {
-	if err := s.login(); err != nil {
+// New driver instance
+func New(c *ipmi.Client) (media.Driver, error) {
+	return &driver{c: c}, nil
+}
+
+func (d *driver) Insert(m media.DeviceMap) error {
+	if err := d.login(); err != nil {
 		return err
 	}
 
 	devices := map[string]struct {
 		boot ipmi.BootDevice
-		call func(*VirtualDevice) error
+		call func(*media.Device) error
 	}{
-		ISO: {ipmi.BootDeviceCdrom, s.insertISO},
-		IMG: {ipmi.BootDeviceFloppy, s.insertIMG},
+		media.ISO: {ipmi.BootDeviceCdrom, d.insertISO},
+		media.IMG: {ipmi.BootDeviceFloppy, d.insertIMG},
 	}
 
-	for id, device := range media {
+	for id, device := range m {
 		if err := devices[id].call(device); err != nil {
 			return err
 		}
 		if device.Boot {
-			if err := s.c.SetBootDevice(devices[id].boot); err != nil {
+			if err := d.c.SetBootDevice(devices[id].boot); err != nil {
 				return err
 			}
 		}
@@ -66,18 +72,18 @@ func (s *supermicro) Mount(media VirtualMedia) error {
 	return nil
 }
 
-func (s *supermicro) UnMount() error {
-	if err := s.login(); err != nil {
+func (d *driver) Eject() error {
+	if err := d.login(); err != nil {
 		return err
 	}
 
 	paths := map[string]string{
-		ISO: smcEjectISO,
-		IMG: smcEjectIMG,
+		media.ISO: smcEjectISO,
+		media.IMG: smcEjectIMG,
 	}
 
 	for _, path := range paths {
-		res, err := s.Get(s.url(path).String())
+		res, err := d.Get(d.url(path).String())
 		if err != nil {
 			return err
 		}
@@ -90,13 +96,13 @@ func (s *supermicro) UnMount() error {
 	return nil
 }
 
-func (s *supermicro) login() error {
+func (d *driver) login() error {
 	val := url.Values{
-		"name": []string{s.c.Username},
-		"pwd":  []string{s.c.Password},
+		"name": []string{d.c.Username},
+		"pwd":  []string{d.c.Password},
 	}
 
-	res, err := s.PostForm(s.url(smcLogin).String(), val)
+	res, err := d.PostForm(d.url(smcLogin).String(), val)
 	if err != nil {
 		return err
 	}
@@ -109,13 +115,13 @@ func (s *supermicro) login() error {
 	if len(cookies) == 0 {
 		return http.ErrNoCookie
 	}
-	s.Jar, _ = cookiejar.New(nil)
-	s.Jar.SetCookies(s.url("/"), cookies)
+	d.Jar, _ = cookiejar.New(nil)
+	d.Jar.SetCookies(d.url("/"), cookies)
 
 	return nil
 }
 
-func (s *supermicro) insertIMG(device *VirtualDevice) error {
+func (d *driver) insertIMG(device *media.Device) error {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -139,7 +145,7 @@ func (s *supermicro) insertIMG(device *VirtualDevice) error {
 		return err
 	}
 
-	res, err := s.Post(s.url(smcInsertIMG).String(), writer.FormDataContentType(), body)
+	res, err := d.Post(d.url(smcInsertIMG).String(), writer.FormDataContentType(), body)
 	_ = res.Body.Close()
 	if err != nil {
 		return err
@@ -152,8 +158,8 @@ func (s *supermicro) insertIMG(device *VirtualDevice) error {
 	return nil
 }
 
-func (s *supermicro) configISO(device *VirtualDevice) error {
-	smb := device.SambaURL(s.c.LocalIP())
+func (d *driver) configISO(device *media.Device) error {
+	smb := device.SambaURL(d.c.LocalIP())
 	pwd, _ := smb.User.Password()
 	val := url.Values{
 		"host": []string{smb.Host},
@@ -162,7 +168,7 @@ func (s *supermicro) configISO(device *VirtualDevice) error {
 		"pwd":  []string{pwd},
 	}
 
-	res, err := s.PostForm(s.url(smcConfigISO).String(), val)
+	res, err := d.PostForm(d.url(smcConfigISO).String(), val)
 	if err != nil {
 		return err
 	}
@@ -173,12 +179,12 @@ func (s *supermicro) configISO(device *VirtualDevice) error {
 	return nil
 }
 
-func (s *supermicro) insertISO(device *VirtualDevice) error {
-	if err := s.configISO(device); err != nil {
+func (d *driver) insertISO(device *media.Device) error {
+	if err := d.configISO(device); err != nil {
 		return err
 	}
 
-	res, err := s.Get(s.url(smcInsertISO).String())
+	res, err := d.Get(d.url(smcInsertISO).String())
 	if err != nil {
 		return err
 	}
@@ -189,10 +195,10 @@ func (s *supermicro) insertISO(device *VirtualDevice) error {
 	return nil
 }
 
-func (s *supermicro) url(path string) *url.URL {
+func (d *driver) url(path string) *url.URL {
 	return &url.URL{
 		Scheme: smcScheme,
-		Host:   net.JoinHostPort(s.c.Hostname, smcPort),
+		Host:   net.JoinHostPort(d.c.Hostname, smcPort),
 		Path:   path,
 	}
 }

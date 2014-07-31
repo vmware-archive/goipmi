@@ -1,9 +1,10 @@
 // Copyright (c) 2014 VMware, Inc. All Rights Reserved.
 
-package media
+package supermicro
 
 import (
 	"github.com/vmware/goipmi"
+	"github.com/vmware/goipmi/media"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -15,12 +16,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type smcSim struct {
+type sim struct {
 	*ipmi.Simulator
 	c *ipmi.Connection
 	l net.Listener
 	h *http.ServeMux
-	m VirtualMedia
+	m media.DeviceMap
 	t *testing.T
 	r map[string]int
 
@@ -28,7 +29,7 @@ type smcSim struct {
 	calledControl bool
 }
 
-func (s *smcSim) Run() error {
+func (s *sim) Run() error {
 	s.r = make(map[string]int)
 	s.calledSetBoot = make(map[ipmi.BootDevice]bool)
 	s.Simulator = ipmi.NewSimulator(net.UDPAddr{})
@@ -67,12 +68,12 @@ func (s *smcSim) Run() error {
 	return nil
 }
 
-func (s *smcSim) Stop() {
+func (s *sim) Stop() {
 	s.Simulator.Stop()
 	s.l.Close()
 }
 
-func (s *smcSim) login(w http.ResponseWriter, req *http.Request) {
+func (s *sim) login(w http.ResponseWriter, req *http.Request) {
 	user := req.PostFormValue("name")
 	pass := req.PostFormValue("pwd")
 	if user != "ADMIN" || pass != "ADMIN" {
@@ -89,7 +90,7 @@ func (s *smcSim) login(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
-func (s *smcSim) authenticate(w http.ResponseWriter, req *http.Request) bool {
+func (s *sim) authenticate(w http.ResponseWriter, req *http.Request) bool {
 	c, err := req.Cookie("SID")
 	if err == nil && c.Value == "t0k3n" {
 		return true
@@ -98,7 +99,7 @@ func (s *smcSim) authenticate(w http.ResponseWriter, req *http.Request) bool {
 	return false
 }
 
-func (s *smcSim) insertIMG(w http.ResponseWriter, req *http.Request) {
+func (s *sim) insertIMG(w http.ResponseWriter, req *http.Request) {
 	if !s.authenticate(w, req) {
 		return
 	}
@@ -108,7 +109,7 @@ func (s *smcSim) insertIMG(w http.ResponseWriter, req *http.Request) {
 	assert.NotEmpty(s.t, req.Header.Get("Content-Length"))
 	assert.Empty(s.t, req.Header.Get("Transfer-Encoding"))
 
-	path := s.m[IMG].Path
+	path := s.m[media.IMG].Path
 	f, h, err := req.FormFile("file")
 	assert.NoError(s.t, err)
 	assert.Equal(s.t, path, h.Filename)
@@ -123,13 +124,13 @@ func (s *smcSim) insertIMG(w http.ResponseWriter, req *http.Request) {
 	assert.Equal(s.t, actual, given)
 }
 
-func (s *smcSim) ejectIMG(w http.ResponseWriter, req *http.Request) {
+func (s *sim) ejectIMG(w http.ResponseWriter, req *http.Request) {
 	if !s.authenticate(w, req) {
 		return
 	}
 }
 
-func (s *smcSim) configISO(w http.ResponseWriter, req *http.Request) {
+func (s *sim) configISO(w http.ResponseWriter, req *http.Request) {
 	if !s.authenticate(w, req) {
 		return
 	}
@@ -139,25 +140,25 @@ func (s *smcSim) configISO(w http.ResponseWriter, req *http.Request) {
 	v := req.Form
 	assert.Equal(s.t, 4, len(v))
 	assert.Equal(s.t, []string{"127.0.0.1"}, v["host"])
-	assert.Equal(s.t, []string{"\\images\\supermicro.go"}, v["path"])
+	assert.Equal(s.t, []string{"\\images\\driver.go"}, v["path"])
 	assert.Equal(s.t, []string{"guest"}, v["user"])
 	assert.Equal(s.t, []string{""}, v["pwd"])
 }
 
-func (s *smcSim) insertISO(w http.ResponseWriter, req *http.Request) {
+func (s *sim) insertISO(w http.ResponseWriter, req *http.Request) {
 	if !s.authenticate(w, req) {
 		return
 	}
 }
 
-func (s *smcSim) ejectISO(w http.ResponseWriter, req *http.Request) {
+func (s *sim) ejectISO(w http.ResponseWriter, req *http.Request) {
 	if !s.authenticate(w, req) {
 		return
 	}
 }
 
 func TestSMC(t *testing.T) {
-	s := &smcSim{t: t}
+	s := &sim{t: t}
 	err := s.Run()
 	if err != nil {
 		t.Fatal(err)
@@ -185,17 +186,17 @@ func TestSMC(t *testing.T) {
 		calledHandler = true
 		return nil
 	}
-	s.m = VirtualMedia{
-		ISO: &VirtualDevice{
-			Path: "/images/supermicro.go",
+	s.m = media.DeviceMap{
+		media.ISO: &media.Device{
+			Path: "/images/driver.go",
 			Boot: true,
 		},
-		IMG: &VirtualDevice{
-			Path: "supermicro_test.go",
+		media.IMG: &media.Device{
+			Path: "driver_test.go",
 		},
 	}
 
-	err = Boot(s.c, s.m, bootHandler)
+	err = media.Boot(s.c, s.m, bootHandler)
 	assert.Error(t, err)
 	assert.Equal(t, http.ErrNoCookie, err) // auth failed
 	assert.Equal(t, 1, len(s.r))
@@ -205,7 +206,7 @@ func TestSMC(t *testing.T) {
 	s.c.Username = "ADMIN"
 	s.c.Password = "ADMIN"
 
-	err = Boot(s.c, s.m, bootHandler)
+	err = media.Boot(s.c, s.m, bootHandler)
 	assert.NoError(t, err)
 
 	assert.Equal(t, len(handlers), len(s.r))
@@ -216,7 +217,7 @@ func TestSMC(t *testing.T) {
 
 	for path, handler := range handlers {
 		handlers[path] = http.NotFound
-		err = Boot(s.c, s.m, bootHandler)
+		err = media.Boot(s.c, s.m, bootHandler)
 
 		if strings.HasSuffix(path, "pout.cgi") {
 			// Boot just logs unmount errors

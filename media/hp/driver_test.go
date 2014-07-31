@@ -1,9 +1,10 @@
 // Copyright (c) 2014 VMware, Inc. All Rights Reserved.
 
-package media
+package hp
 
 import (
 	"github.com/vmware/goipmi"
+	"github.com/vmware/goipmi/media"
 	"github.com/vmware/goipmi/test"
 	"net"
 	"regexp"
@@ -15,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type hpSim struct {
+type sim struct {
 	*ipmi.Simulator
 	wg   *sync.WaitGroup
 	c    *ipmi.Connection
@@ -25,7 +26,7 @@ type hpSim struct {
 	calledControl bool
 }
 
-func (s *hpSim) Run() error {
+func (s *sim) Run() error {
 	s.Simulator = ipmi.NewSimulator(net.UDPAddr{})
 	if err := s.Simulator.Run(); err != nil {
 		return err
@@ -52,13 +53,13 @@ func (s *hpSim) Run() error {
 	return nil
 }
 
-func (s *hpSim) Stop() {
+func (s *sim) Stop() {
 	s.wg.Wait()
 	s.Simulator.Stop()
 }
 
 func TestHP(t *testing.T) {
-	s := &hpSim{}
+	s := &sim{}
 	err := s.Run()
 	if err != nil {
 		t.Fatal(err)
@@ -66,16 +67,16 @@ func TestHP(t *testing.T) {
 	defer s.Stop()
 
 	calledHandler := false
-	vm := VirtualMedia{
-		ISO: &VirtualDevice{
-			Path: "hp.go",
+	vm := media.DeviceMap{
+		media.ISO: &media.Device{
+			Path: "driver.go",
 		},
-		IMG: &VirtualDevice{
-			Path: "hp_test.go",
+		media.IMG: &media.Device{
+			Path: "driver_test.go",
 			Boot: true,
 		},
 	}
-	err = Boot(s.c, vm, func(*ipmi.Client) error {
+	err = media.Boot(s.c, vm, func(*ipmi.Client) error {
 		calledHandler = true
 		return nil
 	})
