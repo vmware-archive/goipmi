@@ -17,17 +17,38 @@ func TestOptions(t *testing.T) {
 	}{
 		{
 			"should use default port and interface",
-			&Connection{"", "h", 0, "u", "p", "", 0, nil},
+			&Connection{
+				Path:      "",
+				Hostname:  "h",
+				Port:      0,
+				Username:  "u",
+				Password:  "p",
+				Interface: "",
+			},
 			[]string{"-H", "h", "-U", "u", "-P", "p", "-I", "lanplus"},
 		},
 		{
 			"should append port",
-			&Connection{"", "h", 1623, "u", "p", "", 0, nil},
+			&Connection{
+				Path:      "",
+				Hostname:  "h",
+				Port:      1623,
+				Username:  "u",
+				Password:  "p",
+				Interface: "",
+			},
 			[]string{"-H", "h", "-U", "u", "-P", "p", "-I", "lanplus", "-p", "1623"},
 		},
 		{
 			"should override default interface",
-			&Connection{"", "h", 0, "u", "p", "lan", 0, nil},
+			&Connection{
+				Path:      "",
+				Hostname:  "h",
+				Port:      0,
+				Username:  "u",
+				Password:  "p",
+				Interface: "lan",
+			},
 			[]string{"-H", "h", "-U", "u", "-P", "p", "-I", "lan"},
 		},
 	}
