@@ -180,6 +180,23 @@ func (r *SystemBootOptionsResponse) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
+// UnmarshalBinary implementation to handle variable length Data
+func (r *ChassisStatusResponse) UnmarshalBinary(buf []byte) error {
+	if len(buf) < 4 {
+		return ErrShortPacket
+	}
+	r.CompletionCode = CompletionCode(buf[0])
+	r.PowerState = buf[1]
+	r.LastPowerEvent =  buf[2]
+	r.State = buf[3]
+	if len(buf) > 4 {
+		r.FrontControlPanel = buf[4]
+	} else {
+		r.FrontControlPanel = 0
+	}
+	return nil
+}
+
 func (r *SystemBootOptionsResponse) BootDeviceSelector() BootDevice {
 	return BootDevice(((r.Data[1] >> 2) & 0x0f) << 2)
 }
