@@ -47,6 +47,7 @@ type NetworkFunction uint8
 var (
 	NetworkFunctionChassis = NetworkFunction(0x00)
 	NetworkFunctionApp     = NetworkFunction(0x06)
+	NetworkFunctionDcmi    = NetworkFunction(0x2c)
 )
 
 var (
