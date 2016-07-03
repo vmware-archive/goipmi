@@ -73,10 +73,7 @@ func (l *lan) open() error {
 
 func (l *lan) close() error {
 	if l.active {
-		err := l.closeSession()
-		if err != nil {
-			log.Printf("error closing session: %s", err)
-		}
+		l.closeSession()
 		l.active = false
 	}
 
