@@ -32,7 +32,7 @@ type DcmiSetMcIdRequest struct {
 type DcmiSetMcIdResponse struct {
 	CompletionCode
 	GroupExtensionId  uint8
-	LastOffsetWrriten uint8
+	LastOffsetWritten uint8
 }
 
 // MarshalBinary implementation to handle variable length Data
@@ -73,7 +73,14 @@ func (r *DcmiGetMcIdResponse) UnmarshalBinary(buf []byte) error {
 	r.CompletionCode = CompletionCode(buf[0])
 	r.GroupExtensionId = buf[1]
 	r.NumBytes = buf[2]
-	r.Data = string(buf[3:3+r.NumBytes])
+	ending := 3
+	for idx, b := range buf[3:] {
+		if b == 0x00 {
+			ending = idx + 3
+			break
+		}
+	}
+	r.Data = string(buf[3:ending])
 	return nil
 }
 
@@ -107,7 +114,7 @@ func (r *DcmiSetMcIdResponse) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, 3)
 	buf[0] = byte(r.CompletionCode)
 	buf[1] = r.GroupExtensionId
-	buf[2] = r.LastOffsetWrriten
+	buf[2] = r.LastOffsetWritten
 	return buf, nil
 }
 
@@ -118,6 +125,6 @@ func (r *DcmiSetMcIdResponse) UnmarshalBinary(buf []byte) error {
 	}
 	r.CompletionCode = CompletionCode(buf[0])
 	r.GroupExtensionId = buf[1]
-	r.LastOffsetWrriten = buf[2]
+	r.LastOffsetWritten = buf[2]
 	return nil
 }
