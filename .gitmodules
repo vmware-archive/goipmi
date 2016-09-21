@@ -1,3 +1,0 @@
-[submodule "vendor/github.com/stretchr/testify"]
-        path = vendor/github.com/stretchr/testify
-        url = https://github.com/stretchr/testify
