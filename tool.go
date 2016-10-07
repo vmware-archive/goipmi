@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -55,11 +56,11 @@ func (t *tool) send(req *Request, res Response) error {
 	return responseFromString(output, res)
 }
 
-func (t *tool) Console() error {
+func (t *tool) Console(outWriter io.Writer, errWriter io.Writer) error {
 	cmd := t.cmd("sol", "activate", "-e", "&")
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = outWriter
+	cmd.Stderr = errWriter
 	return cmd.Run()
 }
 
