@@ -31,6 +31,7 @@ const (
 	CommandChassisStatus            = Command(0x01)
 	CommandSetSystemBootOptions     = Command(0x08)
 	CommandGetSystemBootOptions     = Command(0x09)
+	CommandChassisIdentify          = Command(0x04)
 )
 
 // Request structure

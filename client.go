@@ -16,6 +16,8 @@ limitations under the License.
 
 package ipmi
 
+import "fmt"
+
 // Client provides common high level functionality around the underlying transport
 type Client struct {
 	*Connection
@@ -117,4 +119,25 @@ func (c *Client) Control(ctl ChassisControl) error {
 		&ChassisControlRequest{ctl},
 	}
 	return c.Send(r, &ChassisControlResponse{})
+}
+
+func (c *Client) Identify(time int, indefinitely bool) error {
+	if time > 255 || time < 0 {
+		return fmt.Errorf("invalid time value")
+	}
+	var force uint8
+	if indefinitely {
+		force = 1
+	} else {
+		force = 0
+	}
+	r := &Request{
+		NetworkFunctionChassis,
+		CommandChassisIdentify,
+		&ChassisIdentifyRequest{
+			Interval: uint8(time),
+			Force:    force,
+		},
+	}
+	return c.Send(r, &ChassisIdentifyResponse{})
 }
