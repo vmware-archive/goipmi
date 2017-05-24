@@ -1,31 +1,31 @@
 package ipmi
 
 const (
-	MAX_MC_ID_STRING_LEN = 16
+	MAX_MC_ID_STRING_LEN    = 16
 	DCMI_GROUP_EXTENSION_ID = 0xDC
 )
 
 // DcmiGetMcIdRequest per section 6.4.6.1
 type DcmiGetMcIdRequest struct {
-	GroupExtensionId  uint8
-	Offset            uint8
-	NumBytes          uint8
+	GroupExtensionId uint8
+	Offset           uint8
+	NumBytes         uint8
 }
 
 // DcmiGetMcIdResponse per section 6.4.6.1
 type DcmiGetMcIdResponse struct {
 	CompletionCode
-	GroupExtensionId  uint8
-	NumBytes          uint8
-	Data              string
+	GroupExtensionId uint8
+	NumBytes         uint8
+	Data             string
 }
 
 // DcmiSetMcIdRequest per section 6.4.6.2
 type DcmiSetMcIdRequest struct {
-	GroupExtensionId  uint8
-	Offset            uint8
-	NumBytes          uint8
-	Data              string
+	GroupExtensionId uint8
+	Offset           uint8
+	NumBytes         uint8
+	Data             string
 }
 
 // DcmiSetMcIdResponse per section 6.4.6.2
@@ -73,7 +73,7 @@ func (r *DcmiGetMcIdResponse) UnmarshalBinary(buf []byte) error {
 	r.CompletionCode = CompletionCode(buf[0])
 	r.GroupExtensionId = buf[1]
 	r.NumBytes = buf[2]
-	ending := len(buf)-1
+	ending := len(buf) - 1
 	for idx, b := range buf[3:] {
 		if b == 0x00 {
 			ending = idx + 3
@@ -105,7 +105,7 @@ func (r *DcmiSetMcIdRequest) UnmarshalBinary(buf []byte) error {
 	r.GroupExtensionId = buf[0]
 	r.Offset = buf[1]
 	r.NumBytes = buf[2]
-	r.Data = string(buf[3:3+r.NumBytes])
+	r.Data = string(buf[3 : 3+r.NumBytes])
 	return nil
 }
 

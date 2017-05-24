@@ -187,7 +187,7 @@ func (r *ChassisStatusResponse) UnmarshalBinary(buf []byte) error {
 	}
 	r.CompletionCode = CompletionCode(buf[0])
 	r.PowerState = buf[1]
-	r.LastPowerEvent =  buf[2]
+	r.LastPowerEvent = buf[2]
 	r.State = buf[3]
 	if len(buf) > 4 {
 		r.FrontControlPanel = buf[4]
