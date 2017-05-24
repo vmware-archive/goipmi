@@ -16,14 +16,17 @@ limitations under the License.
 
 package ipmi
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+)
 
 type transport interface {
 	open() error
 	close() error
 	send(*Request, Response) error
 	// Console enters Serial Over LAN mode
-	Console() error
+	Console(io.Writer, io.Writer) error
 }
 
 func newTransport(c *Connection) (transport, error) {

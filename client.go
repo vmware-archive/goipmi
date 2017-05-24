@@ -118,3 +118,23 @@ func (c *Client) Control(ctl ChassisControl) error {
 	}
 	return c.Send(r, &ChassisControlResponse{})
 }
+
+func (c *Client) GetMcId() (*DcmiGetMcIdResponse, error) {
+	r := &Request{
+		NetworkFunctionDcmi,
+		CommandGetMcIdString,
+		&DcmiGetMcIdRequest{DCMI_GROUP_EXTENSION_ID, 0, MAX_MC_ID_STRING_LEN},
+	}
+	res := &DcmiGetMcIdResponse{}
+	return res, c.Send(r, res)
+}
+
+func (c *Client) SetMcId(mcId string) (*DcmiSetMcIdResponse, error) {
+	r := &Request{
+		NetworkFunctionDcmi,
+		CommandSetMcIdString,
+		&DcmiSetMcIdRequest{DCMI_GROUP_EXTENSION_ID, 0, uint8(len(mcId)), mcId},
+	}
+	res := &DcmiSetMcIdResponse{}
+	return res, c.Send(r, res)
+}

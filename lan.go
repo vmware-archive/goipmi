@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -73,10 +74,7 @@ func (l *lan) open() error {
 
 func (l *lan) close() error {
 	if l.active {
-		err := l.closeSession()
-		if err != nil {
-			log.Printf("error closing session: %s", err)
-		}
+		l.closeSession()
 		l.active = false
 	}
 
@@ -102,7 +100,7 @@ func (l *lan) send(req *Request, res Response) error {
 	return m.Response(res)
 }
 
-func (*lan) Console() error {
+func (*lan) Console(_ io.Writer, _ io.Writer) error {
 	fmt.Println("Console not supported. Press Enter to continue.")
 	r := make([]byte, 1)
 	_, err := os.Stdin.Read(r)
