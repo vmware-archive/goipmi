@@ -144,7 +144,7 @@ func TestTool(t *testing.T) {
 	err = tr.send(req, bor)
 	assert.NoError(t, err)
 	assert.Equal(t, uint8(BootParamBootFlags), bor.Param)
-	assert.Equal(t, uint8(BootDevicePxe), bor.BootDeviceSelector())
+	assert.Equal(t, uint8(BootDevicePxe), uint8(bor.BootDeviceSelector()))
 	assert.Equal(t, uint8(0x40), bor.Data[1]&0x40)
 
 	// Invalid command
@@ -155,4 +155,35 @@ func TestTool(t *testing.T) {
 	err = tr.close()
 	assert.NoError(t, err)
 	s.Stop()
+}
+
+type testResponse struct {
+	CompletionCode
+}
+
+func TestResponseFromString(t *testing.T) {
+	tests := []struct {
+		should string
+		input   string
+	}{
+		{
+			"response from chassis status (raw 0x00 0x01)",
+			" 01 00 00 \n",
+		},
+		{
+			"response from chassis boot target (raw 0x00 0x08 0x05 0x80 0x04 0x00 0x00 0x00)",
+			"",
+		},
+		{
+			"response from chassis identify (raw 0x00 0x04 0x01 0x00)",
+			` 7f 00 00 90 4a 57 f8 fd 7f 00 00 b0 49 57 f8 fd
+7f 00 00 90 4a 57 f8 fd 7f 00 00 20 f1 b9 8a 8c
+55 00 00`,
+		},
+	}
+
+	for _, test := range tests {
+		err := responseFromString(test.input, &testResponse{})
+		assert.NoError(t, err, test.should)
+	}
 }
