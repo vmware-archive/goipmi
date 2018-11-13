@@ -19,6 +19,8 @@ package ipmi
 type ChassisControl uint8
 type BootDevice uint8
 
+type IdentifyState uint8
+
 const (
 	ControlPowerDown      = ChassisControl(0x0)
 	ControlPowerUp        = ChassisControl(0x1)
@@ -58,10 +60,16 @@ const (
 	PowerEventFault     = 0x8
 	PowerEventCommand   = 0x10
 
-	ChassisIntrusion  = 0x1
-	FrontPanelLockout = 0x2
-	DriveFault        = 0x4
-	CoolingFanFault   = 0x8
+	ChassisIntrusion            = 0x1
+	FrontPanelLockout           = 0x2
+	DriveFault                  = 0x4
+	CoolingFanFault             = 0x8
+	ChassisIdentifySupported    = 0x40
+	ChassisIdentifyMask         = 0x30
+	ChassisIdentifyOff          = 0x00
+	ChassisIdentifyOn           = 0x10
+	ChassisIdentifyOnIndefinite = 0x20
+	ChassisIdentifyReserved     = 0x30
 
 	SleepButtonDisable  = 0x80
 	DiagButtonDisable   = 0x40
@@ -80,6 +88,12 @@ const (
 	BootParamBootFlags     = 0x5
 	BootParamInitInfo      = 0x6
 	BootParamInitMbox      = 0x7
+
+	IdentifyOff          = IdentifyState(0x0)
+	IdentifyOn           = IdentifyState(0x1)
+	IdentifyOnIndefinite = IdentifyState(0x2)
+	IdentifyReserved     = IdentifyState(0x3)
+	IdentifyUnsupported  = IdentifyState(0x4)
 )
 
 // ChassisStatusRequest per section 28.2
@@ -128,6 +142,17 @@ type SystemBootOptionsResponse struct {
 	Version uint8
 	Param   uint8
 	Data    []uint8
+}
+
+// ChassisIdentifyRequest per Secion 28.5
+type ChassisIdentifyRequest struct {
+	Interval uint8
+	Force    uint8
+}
+
+// ChassisIdentifyResponse per section 28.5
+type ChassisIdentifyResponse struct {
+	CompletionCode
 }
 
 // MarshalBinary implementation to handle variable length Data
@@ -187,7 +212,7 @@ func (r *ChassisStatusResponse) UnmarshalBinary(buf []byte) error {
 	}
 	r.CompletionCode = CompletionCode(buf[0])
 	r.PowerState = buf[1]
-	r.LastPowerEvent =  buf[2]
+	r.LastPowerEvent = buf[2]
 	r.State = buf[3]
 	if len(buf) > 4 {
 		r.FrontControlPanel = buf[4]
@@ -203,6 +228,22 @@ func (r *SystemBootOptionsResponse) BootDeviceSelector() BootDevice {
 
 func (s *ChassisStatusResponse) IsSystemPowerOn() bool {
 	return (s.PowerState & SystemPower) == SystemPower
+}
+
+func (s *ChassisStatusResponse) IsIdentifyOn() IdentifyState {
+	if (s.State & ChassisIdentifySupported) == ChassisIdentifySupported {
+		switch s.State & ChassisIdentifyMask {
+		case ChassisIdentifyOff:
+			return IdentifyOff
+		case ChassisIdentifyOn:
+			return IdentifyOn
+		case ChassisIdentifyOnIndefinite:
+			return IdentifyOnIndefinite
+		case ChassisIdentifyReserved:
+			return IdentifyReserved
+		}
+	}
+	return IdentifyUnsupported
 }
 
 func (s *ChassisStatusResponse) String() string {
