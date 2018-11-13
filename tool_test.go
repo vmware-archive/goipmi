@@ -74,6 +74,10 @@ func TestOptions(t *testing.T) {
 }
 
 func TestTool(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping tool tests")
+	}
+
 	s := NewSimulator(net.UDPAddr{Port: 0})
 	err := s.Run()
 	assert.NoError(t, err)
