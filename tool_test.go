@@ -151,6 +151,32 @@ func TestTool(t *testing.T) {
 	assert.Equal(t, uint8(BootDevicePxe), bor.BootDeviceSelector())
 	assert.Equal(t, uint8(0x40), bor.Data[1]&0x40)
 
+	// Set user name
+	req = &Request{
+		NetworkFunctionApp,
+		CommandSetUserName,
+		&SetUserNameRequest{
+			UserID:   0x01,
+			Username: "test",
+		},
+	}
+	sur := &SetUserNameResponse{}
+	err = tr.send(req, sur)
+	assert.NoError(t, err)
+
+	// Get user name
+	req = &Request{
+		NetworkFunctionApp,
+		CommandGetUserName,
+		&GetUserNameRequest{
+			UserID: 0x01,
+		},
+	}
+	gur := &GetUserNameResponse{}
+	err = tr.send(req, gur)
+	assert.NoError(t, err)
+	assert.Equal(t, "test", gur.Username)
+
 	// Invalid command
 	req.Command = 0xff
 	err = tr.send(req, &DeviceIDResponse{})

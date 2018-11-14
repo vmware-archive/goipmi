@@ -56,6 +56,8 @@ func NewSimulator(addr net.UDPAddr) *Simulator {
 		CommandActivateSession:          s.sessionActivate,
 		CommandSetSessionPrivilegeLevel: s.sessionPrivilege,
 		CommandCloseSession:             s.sessionClose,
+		CommandGetUserName:              s.getUserName,
+		CommandSetUserName:              s.setUserName,
 	}
 
 	// Built-in handlers for chassis commands
@@ -151,6 +153,30 @@ func (s *Simulator) deviceID(*Message) Response {
 	return &DeviceIDResponse{
 		CompletionCode: CommandCompleted,
 		IPMIVersion:    0x51, // 1.5
+	}
+}
+
+var users = []string{"admin", "", "", "", ""}
+
+func (s *Simulator) getUserName(m *Message) Response {
+	req := &GetUserNameRequest{}
+	if err := m.Request(req); err != nil {
+		return err
+	}
+	return &GetUserNameResponse{
+		CompletionCode: CommandCompleted,
+		Username:       users[req.UserID],
+	}
+}
+
+func (s *Simulator) setUserName(m *Message) Response {
+	req := &SetUserNameRequest{}
+	if err := m.Request(req); err != nil {
+		return err
+	}
+	users[req.UserID] = req.Username
+	return &SetUserNameResponse{
+		CompletionCode: CommandCompleted,
 	}
 }
 

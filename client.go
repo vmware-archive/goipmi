@@ -118,3 +118,28 @@ func (c *Client) Control(ctl ChassisControl) error {
 	}
 	return c.Send(r, &ChassisControlResponse{})
 }
+
+func (c *Client) GetUserName(userID byte) (*GetUserNameResponse, error) {
+	req := &Request{
+		NetworkFunctionApp,
+		CommandGetUserName,
+		&GetUserNameRequest{
+			UserID: userID,
+		},
+	}
+	res := &GetUserNameResponse{}
+	return res, c.Send(req, res)
+}
+
+func (c *Client) SetUserName(userID byte, username string) (*SetUserNameResponse, error) {
+	req := &Request{
+		NetworkFunctionApp,
+		CommandSetUserName,
+		&SetUserNameRequest{
+			UserID:   userID,
+			Username: username,
+		},
+	}
+	res := &SetUserNameResponse{}
+	return res, c.Send(req, res)
+}
