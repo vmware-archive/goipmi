@@ -134,7 +134,8 @@ func responseFromBytes(msg []byte, r Response) error {
 }
 
 func responseFromString(s string, r Response) error {
-	msg := rawDecode(strings.TrimSpace(s))
+	// Remove trailing spaces and newlines from string received
+	msg := rawDecode(strings.Replace(strings.TrimSpace(s), "\n", "", -1))
 	return responseFromBytes(msg, r)
 }
 
