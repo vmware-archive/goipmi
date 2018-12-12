@@ -135,9 +135,7 @@ func responseFromBytes(msg []byte, r Response) error {
 
 func responseFromString(s string, r Response) error {
 	// Remove trailing spaces and newlines from string received.
-	// Add some zeros to avoid endianess problems during unmarshaling in border cases
-	// fmt.Printf("Message received: %s\n", s)
-	msg := rawDecode(fmt.Sprintf("%s0000", strings.Replace(strings.TrimSpace(s), "\n", "", -1)))
+	msg := rawDecode(strings.Replace(strings.TrimSpace(s), "\n", "", -1))
 	return responseFromBytes(msg, r)
 }
 

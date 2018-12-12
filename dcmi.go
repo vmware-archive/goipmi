@@ -73,7 +73,7 @@ func (r *DcmiGetMcIdResponse) UnmarshalBinary(buf []byte) error {
 	r.CompletionCode = CompletionCode(buf[0])
 	r.GroupExtensionId = buf[1]
 	r.NumBytes = buf[2]
-	ending := len(buf) - 1
+	ending := len(buf)
 	for idx, b := range buf[3:] {
 		if b == 0x00 {
 			ending = idx + 3
