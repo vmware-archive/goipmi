@@ -16,6 +16,11 @@ limitations under the License.
 
 package ipmi
 
+import (
+	"bytes"
+	"fmt"
+)
+
 // Client provides common high level functionality around the underlying transport
 type Client struct {
 	*Connection
@@ -120,13 +125,32 @@ func (c *Client) Control(ctl ChassisControl) error {
 }
 
 func (c *Client) GetMcId() (*DcmiGetMcIdResponse, error) {
-	r := &Request{
-		NetworkFunctionDcmi,
-		CommandGetMcIdString,
-		&DcmiGetMcIdRequest{DCMI_GROUP_EXTENSION_ID, 0, MAX_MC_ID_STRING_LEN},
-	}
+	index := uint8(0)
+	lastChunkReceived := false
+	var dataBuffer bytes.Buffer
 	res := &DcmiGetMcIdResponse{}
-	return res, c.Send(r, res)
+
+	// Read until the last chunk len is less than MAX_MC_ID_STRING_LEN
+	for lastChunkReceived != true {
+		r := &Request{
+			NetworkFunctionDcmi,
+			CommandGetMcIdString,
+			&DcmiGetMcIdRequest{DCMI_GROUP_EXTENSION_ID, index, MAX_MC_ID_STRING_LEN},
+		}
+
+		if err := c.Send(r, res); err != nil {
+			return res, err
+		}
+
+		dataBuffer.WriteString(res.Data)
+		if len(res.Data) != MAX_MC_ID_STRING_LEN {
+			res.Data = dataBuffer.String()
+			lastChunkReceived = true
+		}
+		index += MAX_MC_ID_STRING_LEN
+	}
+
+	return res, nil
 }
 
 func (c *Client) SetMcId(mcId string) (*DcmiSetMcIdResponse, error) {
@@ -138,3 +162,4 @@ func (c *Client) SetMcId(mcId string) (*DcmiSetMcIdResponse, error) {
 	res := &DcmiSetMcIdResponse{}
 	return res, c.Send(r, res)
 }
+
