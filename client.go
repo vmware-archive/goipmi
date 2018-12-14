@@ -18,7 +18,6 @@ package ipmi
 
 import (
 	"bytes"
-	"fmt"
 )
 
 // Client provides common high level functionality around the underlying transport
