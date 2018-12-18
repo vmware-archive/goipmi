@@ -133,7 +133,8 @@ func responseFromBytes(msg []byte, r Response) error {
 }
 
 func responseFromString(s string, r Response) error {
-	msg := rawDecode(strings.TrimSpace(s))
+	trimmed := strings.TrimSpace(s)
+	msg := rawDecode(strings.Replace(trimmed, "\n", "", -1))
 	return responseFromBytes(msg, r)
 }
 
