@@ -141,12 +141,14 @@ func (c *Client) GetMcId() (*DcmiGetMcIdResponse, error) {
 			return res, err
 		}
 
+		// Accumulate the bytes received in the index until it
+		// is the same as the number of bytes expected
 		dataBuffer.WriteString(res.Data)
-		if len(res.Data) != MAX_MC_ID_STRING_LEN {
+		index += res.NumBytes
+		if res.NumBytes == index {
 			res.Data = dataBuffer.String()
 			lastChunkReceived = true
 		}
-		index += MAX_MC_ID_STRING_LEN
 	}
 
 	return res, nil
@@ -161,4 +163,3 @@ func (c *Client) SetMcId(mcId string) (*DcmiSetMcIdResponse, error) {
 	res := &DcmiSetMcIdResponse{}
 	return res, c.Send(r, res)
 }
-
