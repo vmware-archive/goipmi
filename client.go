@@ -144,7 +144,7 @@ func (c *Client) GetMcId() (*DcmiGetMcIdResponse, error) {
 		// Accumulate the bytes received in the index until it
 		// is the same as the number of bytes expected
 		dataBuffer.WriteString(res.Data)
-		index += res.NumBytes
+		index += uint8(len(res.Data))
 		if res.NumBytes == index {
 			res.Data = dataBuffer.String()
 			lastChunkReceived = true
