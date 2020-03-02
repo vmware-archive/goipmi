@@ -148,7 +148,7 @@ func TestTool(t *testing.T) {
 	err = tr.send(req, bor)
 	assert.NoError(t, err)
 	assert.Equal(t, uint8(BootParamBootFlags), bor.Param)
-	assert.Equal(t, uint8(BootDevicePxe), bor.BootDeviceSelector())
+	assert.Equal(t, BootDevicePxe, bor.BootDeviceSelector())
 	assert.Equal(t, uint8(0x40), bor.Data[1]&0x40)
 
 	// Set user name
