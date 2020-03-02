@@ -77,6 +77,15 @@ func (c *Client) setBootParam(param uint8, data ...uint8) error {
 // SetBootDevice is a wrapper around SetSystemBootOptionsRequest to configure the BootDevice
 // per section 28.12 - table 28
 func (c *Client) SetBootDevice(dev BootDevice) error {
+	return c.setBootDevice(dev, false)
+}
+
+// SetBootDeviceEFI is to support EFI boot option
+func (c *Client) SetBootDeviceEFI(dev BootDevice) error {
+	return c.setBootDevice(dev, true)
+}
+
+func (c *Client) setBootDevice(dev BootDevice, efi bool) error {
 	useProgress := true
 	// set set-in-progress flag
 	err := c.setBootParam(BootParamSetInProgress, 0x01)
@@ -93,7 +102,11 @@ func (c *Client) SetBootDevice(dev BootDevice) error {
 		return err
 	}
 
-	err = c.setBootParam(BootParamBootFlags, 0x80, uint8(dev), 0x00, 0x00, 0x00)
+	flag := uint8(0x80)
+	if efi {
+		flag = flag | 0x20
+	}
+	err = c.setBootParam(BootParamBootFlags, flag, uint8(dev), 0x00, 0x00, 0x00)
 	if err == nil {
 		if useProgress {
 			// set-in-progress = commit-write

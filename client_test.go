@@ -34,6 +34,15 @@ func TestClient(t *testing.T) {
 	err = client.Open()
 	assert.NoError(t, err)
 
+	s.SetHandler(NetworkFunctionChassis, CommandSetSystemBootOptions, func(msg *Message) Response {
+		if msg.Data[0] == BootParamBootFlags {
+			assert.Equal(t, []byte{0x05, 0x80, 0x04, 0x00, 0x00, 0x00}, msg.Data)
+		}
+		return &SetSystemBootOptionsResponse{
+			CompletionCode: CommandCompleted,
+		}
+	})
+
 	err = client.SetBootDevice(BootDevicePxe)
 	assert.NoError(t, err)
 
@@ -70,6 +79,34 @@ func TestDeviceID(t *testing.T) {
 		assert.Equal(t, test, id.ManufacturerID)
 		assert.Equal(t, test.String(), id.ManufacturerID.String())
 	}
+
+	err = client.Close()
+	assert.NoError(t, err)
+	s.Stop()
+}
+
+func TestBootDevEFI(t *testing.T) {
+	s := NewSimulator(net.UDPAddr{Port: 0})
+	err := s.Run()
+	assert.NoError(t, err)
+
+	client, err := NewClient(s.NewConnection())
+	assert.NoError(t, err)
+
+	err = client.Open()
+	assert.NoError(t, err)
+
+	s.SetHandler(NetworkFunctionChassis, CommandSetSystemBootOptions, func(msg *Message) Response {
+		if msg.Data[0] == BootParamBootFlags {
+			assert.Equal(t, []byte{0x05, 0xa0, 0x04, 0x00, 0x00, 0x00}, msg.Data)
+		}
+		return &SetSystemBootOptionsResponse{
+			CompletionCode: CommandCompleted,
+		}
+	})
+
+	err = client.SetBootDeviceEFI(BootDevicePxe)
+	assert.NoError(t, err)
 
 	err = client.Close()
 	assert.NoError(t, err)
